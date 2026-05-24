@@ -11,7 +11,7 @@ import ViewportPicker, { defaultViewport, Viewport, Format } from '@/components/
 import PaletteEditor from '@/components/PaletteEditor';
 import PixelGrid from '@/components/PixelGrid';
 import { exportPdf } from '@/lib/pdfExport';
-import { ArrowDown, ChevronDown, ChevronUp, RotateCcw, Palette } from 'lucide-react';
+import { ChevronDown, ChevronUp, RotateCcw, Palette } from 'lucide-react';
 import SectionShell from '@/components/fragment/SectionShell';
 import ChoiceCard from '@/components/fragment/ChoiceCard';
 import FloatingPreview from '@/components/fragment/FloatingPreview';
@@ -398,41 +398,6 @@ export default function Index() {
 
   return (
     <div className="fragment-theme min-h-screen bg-background text-foreground">
-      {/* ─── HERO ─── */}
-      <section className="relative flex min-h-[88vh] items-center justify-center overflow-hidden px-5 sm:px-8 py-24 sm:py-32">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              'radial-gradient(circle at 20% 30%, hsl(28 40% 35%) 0, transparent 50%), radial-gradient(circle at 80% 70%, hsl(25 25% 25%) 0, transparent 55%)',
-          }}
-        />
-        <div className="relative mx-auto max-w-3xl text-center fade-in-up">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-1.5 backdrop-blur">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent" />
-            <span className="font-sans-soft text-[11px] uppercase tracking-[0.22em] text-muted-foreground">
-              Composition artisanale en bois
-            </span>
-          </div>
-          <h1 className="font-serif text-5xl sm:text-7xl leading-[0.95] tracking-tight text-foreground">
-            Créez votre <span className="italic text-accent">Fragment</span>
-          </h1>
-          <p className="mt-6 font-sans-soft text-lg sm:text-xl leading-relaxed text-muted-foreground">
-            Transformez une image en composition de bois artisanale.
-          </p>
-          <div className="mt-12 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4">
-            <button
-              onClick={() => scrollTo(refImport)}
-              className="group inline-flex items-center justify-center gap-2 rounded-full bg-primary px-8 py-4 font-sans-soft text-base font-medium text-primary-foreground transition-all duration-500 hover:opacity-95 soft-shadow-lg"
-            >
-              Commencer
-              <ArrowDown size={16} className="transition-transform duration-500 group-hover:translate-y-0.5" />
-            </button>
-          </div>
-        </div>
-      </section>
-
       {/* ─── Workflow wrapper ── on lg, content sits in the left 50% (centered at 40vw) ─── */}
       <div className="lg:w-1/2 lg:pl-[5vw] lg:pr-[5vw]">
 
@@ -818,8 +783,8 @@ export default function Index() {
       {gridColors.length > 0 && mappedGrid && pastHero && (
         <aside
           aria-label="Aperçu de votre Fragment"
-          className="hidden lg:flex fixed top-1/2 z-30 max-h-[92vh] -translate-y-1/2 flex-col rounded-2xl border border-border bg-card soft-shadow-lg overflow-hidden"
-          style={{ right: '5vw', width: '40vw' }}
+          className="hidden lg:flex fixed z-30 flex-col rounded-2xl border border-border bg-card soft-shadow-lg overflow-hidden"
+          style={{ right: '5vw', width: '40vw', top: 'calc(50vh + 32px)', transform: 'translateY(-50%)', maxHeight: 'calc(100vh - 80px)' }}
         >
           <div className="flex-1 overflow-y-auto p-4">
             <PixelGrid
