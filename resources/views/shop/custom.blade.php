@@ -2,10 +2,6 @@
 
 @section('main-class', 'w-full')
 
-@push('head')
-    <link rel="stylesheet" href="{{ asset('builder/assets/index.css') }}">
-@endpush
-
 @section('content')
     <div id="builder-root"></div>
 @endsection
