@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'shopify' => [
+        'store_domain' => env('SHOPIFY_STORE_DOMAIN'),
+        'storefront_token' => env('SHOPIFY_STOREFRONT_TOKEN'),
+        'client_id' => env('SHOPIFY_CLIENT_ID'),
+        'client_secret' => env('SHOPIFY_CLIENT_SECRET'),
+    ],
+
 ];
