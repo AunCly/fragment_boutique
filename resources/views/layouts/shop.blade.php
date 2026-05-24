@@ -6,6 +6,7 @@
     <title>Fragment Boutique</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @stack('head')
 </head>
 <body class="bg-gray-50 text-gray-900 antialiased" x-data="shop()">
 
@@ -23,7 +24,7 @@
         </div>
     </header>
 
-    <main class="max-w-6xl mx-auto px-4 py-10">
+    <main class="@yield('main-class', 'max-w-6xl mx-auto px-4 py-10')">
         @yield('content')
     </main>
 
@@ -83,5 +84,6 @@
     {{-- Overlay --}}
     <div x-show="isCartOpen" @click="isCartOpen = false" class="fixed inset-0 bg-black/20 z-40"></div>
 
+    @stack('body')
 </body>
 </html>

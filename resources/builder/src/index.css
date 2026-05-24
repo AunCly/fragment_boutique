@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=Cormorant+Garamond:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 10% 8%;
+    --foreground: 40 20% 90%;
+
+    --card: 220 10% 12%;
+    --card-foreground: 40 20% 90%;
+
+    --popover: 220 10% 14%;
+    --popover-foreground: 40 20% 90%;
+
+    --primary: 30 55% 55%;
+    --primary-foreground: 220 10% 8%;
+
+    --secondary: 220 8% 18%;
+    --secondary-foreground: 40 20% 80%;
+
+    --muted: 220 8% 16%;
+    --muted-foreground: 220 8% 50%;
+
+    --accent: 30 40% 45%;
+    --accent-foreground: 40 20% 95%;
+
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 220 8% 22%;
+    --input: 220 8% 20%;
+    --ring: 30 55% 55%;
+
+    --radius: 0.25rem;
+
+    --sidebar-background: 220 10% 10%;
+    --sidebar-foreground: 40 20% 80%;
+    --sidebar-primary: 30 55% 55%;
+    --sidebar-primary-foreground: 220 10% 8%;
+    --sidebar-accent: 220 8% 18%;
+    --sidebar-accent-foreground: 40 20% 80%;
+    --sidebar-border: 220 8% 22%;
+    --sidebar-ring: 30 55% 55%;
+
+    --font-display: 'Space Grotesk', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  /* ─── Fragment theme — premium artisanal, applied to the builder page ─── */
+  .fragment-theme {
+    --background: 34 30% 94%;
+    --foreground: 25 15% 16%;
+
+    --card: 36 35% 97%;
+    --card-foreground: 25 15% 16%;
+
+    --popover: 36 35% 97%;
+    --popover-foreground: 25 15% 16%;
+
+    --primary: 25 35% 28%;
+    --primary-foreground: 36 40% 96%;
+
+    --secondary: 34 20% 88%;
+    --secondary-foreground: 25 15% 22%;
+
+    --muted: 34 18% 90%;
+    --muted-foreground: 25 8% 42%;
+
+    --accent: 28 38% 50%;
+    --accent-foreground: 36 40% 96%;
+
+    --destructive: 0 50% 45%;
+    --destructive-foreground: 36 40% 96%;
+
+    --border: 34 18% 82%;
+    --input: 34 18% 86%;
+    --ring: 28 38% 50%;
+
+    --radius: 0.75rem;
+
+    color: hsl(var(--foreground));
+    background-color: hsl(var(--background));
+  }
+}
+
+@layer base {
+  #builder-root * {
+    @apply border-border;
+  }
+
+  #builder-root {
+    @apply bg-background text-foreground;
+    font-family: var(--font-display);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer utilities {
+  .font-serif {
+    font-family: 'Cormorant Garamond', 'Times New Roman', serif;
+  }
+  .font-sans-soft {
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  .fade-in-up {
+    animation: fadeInUp 0.8s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .soft-shadow {
+    box-shadow: 0 1px 2px hsl(25 15% 16% / 0.04), 0 8px 24px -8px hsl(25 15% 16% / 0.10);
+  }
+  .soft-shadow-lg {
+    box-shadow: 0 4px 12px -2px hsl(25 15% 16% / 0.08), 0 24px 48px -16px hsl(25 15% 16% / 0.18);
+  }
+}
