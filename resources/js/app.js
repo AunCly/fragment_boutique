@@ -7,6 +7,16 @@ Alpine.data('shop', () => ({
     customTitle: '',
     customPrice: '',
 
+    init() {
+        const saved = localStorage.getItem('fragment_cart');
+        if (saved) {
+            this.items = JSON.parse(saved);
+        }
+        this.$watch('items', (value) => {
+            localStorage.setItem('fragment_cart', JSON.stringify(value));
+        }, { deep: true });
+    },
+
     get totalItems() {
         return this.items.reduce((sum, item) => sum + item.quantity, 0);
     },

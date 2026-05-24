@@ -17,9 +17,19 @@ class ShopifyController extends Controller
 
     public function index(): View
     {
+        return view('shop.index');
+    }
+
+    public function products(): View
+    {
         $products = $this->storefront->fetchProducts();
 
-        return view('shop.index', compact('products'));
+        return view('shop.products', compact('products'));
+    }
+
+    public function custom(): View
+    {
+        return view('shop.custom');
     }
 
     public function checkout(Request $request): JsonResponse
