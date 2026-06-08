@@ -17,6 +17,9 @@ export interface SavedPalette {
 
 const STORAGE_KEY = 'pixel-grid-color-library';
 
+// Injected by the server (window.FRAGMENT_WOOD_TEXTURES), falls back to the hardcoded list.
+const SERVER_LIBRARY: LibraryEntry[] | null = (window as any).FRAGMENT_WOOD_TEXTURES ?? null;
+
 // Static library — sourced from textures-export.csv, sorted by sort_order.
 const STATIC_LIBRARY: LibraryEntry[] = [
   { id: 'chene',                           name: 'Chêne',                     hex: '#d4ac7b', tags: ['Bois français',  'Couleur naturelle'], textureUrl: 'https://apunwmswkqwrcwddfsff.supabase.co/storage/v1/object/public/wood-textures/chene-1779370379611.jpg',                          gridCode: 'Z',  fromCloud: true },
@@ -96,7 +99,7 @@ export function loadLibrary(): LibraryEntry[] {
       return migrated;
     }
   } catch { /* ignore */ }
-  return STATIC_LIBRARY;
+  return SERVER_LIBRARY ?? STATIC_LIBRARY;
 }
 
 export function saveLibrary(entries: LibraryEntry[]) {

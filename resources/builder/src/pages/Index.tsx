@@ -19,18 +19,17 @@ import RetouchLibrary from '@/components/fragment/RetouchLibrary';
 import DetailPreview from '@/components/fragment/DetailPreview';
 import LibraryBrowserModal from '@/components/fragment/LibraryBrowserModal';
 
-// ─── Format presets — 3 shapes × 2 sizes ───
+// ─── Format presets — loaded from DB via window injection, hardcoded fallback ───
 type Shape = 'square' | 'landscape' | 'portrait';
-type SizeKey = 'square-s' | 'square-l' | 'landscape-s' | 'landscape-l' | 'portrait-s' | 'portrait-l';
 
 interface FormatOption {
-  key: SizeKey;
+  key: string;
   shape: Shape;
   label: string;   // dimension label e.g. "16 × 16 cm"
   format: Format;  // cols = width cm, rows = height cm (tableSizeCm uses these directly)
 }
 
-const FORMAT_OPTIONS: FormatOption[] = [
+const FALLBACK_FORMAT_OPTIONS: FormatOption[] = [
   { key: 'square-s',    shape: 'square',    label: '16 × 16 cm', format: { cols: 16, rows: 16 } },
   { key: 'square-l',    shape: 'square',    label: '32 × 32 cm', format: { cols: 32, rows: 32 } },
   { key: 'landscape-s', shape: 'landscape', label: '32 × 16 cm', format: { cols: 32, rows: 16 } },
@@ -38,6 +37,8 @@ const FORMAT_OPTIONS: FormatOption[] = [
   { key: 'portrait-s',  shape: 'portrait',  label: '16 × 32 cm', format: { cols: 16, rows: 32 } },
   { key: 'portrait-l',  shape: 'portrait',  label: '32 × 64 cm', format: { cols: 32, rows: 64 } },
 ];
+
+const FORMAT_OPTIONS: FormatOption[] = (window as any).FRAGMENT_FORMATS ?? FALLBACK_FORMAT_OPTIONS;
 
 const SHAPE_LABEL: Record<Shape, string> = { square: 'Carré', landscape: 'Paysage', portrait: 'Portrait' };
 const DEFAULT_FORMAT: Format = FORMAT_OPTIONS[1].format; // 32×32
@@ -54,7 +55,7 @@ function shapeFromFormat(f: Format): Shape {
 function detailFromMm(mm: number): Detail {
   return mm <= 5 ? 'detailed' : 'balanced';
 }
-function formatKey(f: Format): SizeKey | null {
+function formatKey(f: Format): string | null {
   return FORMAT_OPTIONS.find(o => o.format.cols === f.cols && o.format.rows === f.rows)?.key ?? null;
 }
 

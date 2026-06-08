@@ -15,16 +15,16 @@
         <p class="font-sans-soft text-sm text-muted-foreground mt-1">Questions / réponses</p>
     </a>
 
-    <div class="border border-border rounded-2xl bg-card p-6">
-        <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground mb-2">Bois</p>
-        <p class="font-serif text-2xl text-foreground">—</p>
+    <a href="{{ route('admin.wood-textures.index') }}" class="border border-border rounded-2xl bg-card p-6 hover:bg-muted/50 transition block">
+        <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground mb-2">Essences</p>
+        <p class="font-serif text-2xl text-foreground">{{ $woodTextureCount }}</p>
         <p class="font-sans-soft text-sm text-muted-foreground mt-1">Images pour le builder</p>
-    </div>
+    </a>
 
-    <div class="border border-border rounded-2xl bg-card p-6">
+    <a href="{{ route('admin.formats.index') }}" class="border border-border rounded-2xl bg-card p-6 hover:bg-muted/50 transition block">
         <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground mb-2">Formats</p>
-        <p class="font-serif text-2xl text-foreground">—</p>
+        <p class="font-serif text-2xl text-foreground">{{ $formatCount }}</p>
         <p class="font-sans-soft text-sm text-muted-foreground mt-1">Dimensions disponibles</p>
-    </div>
+    </a>
 </div>
 @endsection

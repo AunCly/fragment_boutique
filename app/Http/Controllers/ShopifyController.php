@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Format;
+use App\Models\WoodTexture;
 use App\Services\ShopifyAdminService;
 use App\Services\ShopifyStorefrontService;
 use Illuminate\Http\JsonResponse;
@@ -29,7 +31,10 @@ class ShopifyController extends Controller
 
     public function custom(): View
     {
-        return view('shop.custom');
+        $woodTextures = WoodTexture::active()->ordered()->get()->map->toBuilderEntry()->values();
+        $formats = Format::active()->ordered()->get()->map->toBuilderEntry()->values();
+
+        return view('shop.custom', compact('woodTextures', 'formats'));
     }
 
     public function checkout(Request $request): JsonResponse

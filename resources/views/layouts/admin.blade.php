@@ -21,6 +21,12 @@
                     <a href="{{ route('admin.faqs.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.faqs.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
                         FAQ
                     </a>
+                    <a href="{{ route('admin.wood-textures.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.wood-textures.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
+                        Essences
+                    </a>
+                    <a href="{{ route('admin.formats.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.formats.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
+                        Formats
+                    </a>
                 </nav>
             </div>
             <form action="{{ route('admin.logout') }}" method="POST">
