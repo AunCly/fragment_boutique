@@ -15,6 +15,17 @@ Alpine.data('shop', () => ({
         this.$watch('items', (value) => {
             localStorage.setItem('fragment_cart', JSON.stringify(value));
         }, { deep: true });
+
+        window.addEventListener('fragment:add-to-cart', (e) => {
+            this.items.push({
+                type: 'custom',
+                title: e.detail.title,
+                price: e.detail.price,
+                currency: e.detail.currency ?? 'EUR',
+                quantity: 1,
+            });
+            this.isCartOpen = true;
+        });
     },
 
     get totalItems() {

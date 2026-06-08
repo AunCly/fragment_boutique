@@ -10,7 +10,6 @@ import ImageImporter from '@/components/ImageImporter';
 import ViewportPicker, { defaultViewport, Viewport, Format } from '@/components/ViewportPicker';
 import PaletteEditor from '@/components/PaletteEditor';
 import PixelGrid from '@/components/PixelGrid';
-import { exportPdf } from '@/lib/pdfExport';
 import { ChevronDown, ChevronUp, RotateCcw, Palette } from 'lucide-react';
 import SectionShell from '@/components/fragment/SectionShell';
 import ChoiceCard from '@/components/fragment/ChoiceCard';
@@ -353,12 +352,13 @@ export default function Index() {
 
   const handleResetEdits = () => setManualEditsObj({});
 
-  const [exporting, setExporting] = useState(false);
-  const handleExportPdf = async () => {
-    if (!mappedGrid || exporting) return;
-    setExporting(true);
-    try { await exportPdf(mappedGrid, palette, pixelSizeCm); }
-    finally { setExporting(false); }
+  const handleAddToCart = () => {
+    const shapeLabel = currentShape === 'square' ? 'Carré' : currentShape === 'landscape' ? 'Paysage' : 'Portrait';
+    const detailLabel = currentDetail === 'detailed' ? 'Détaillé' : 'Équilibré';
+    const title = `Fragment · ${shapeLabel} ${tableSizeCm.w}×${tableSizeCm.h} cm · ${detailLabel} · ${palette.length} essences`;
+    window.dispatchEvent(new CustomEvent('fragment:add-to-cart', {
+      detail: { title, price: priceEstimate, currency: 'EUR' },
+    }));
   };
 
   const hasManualEdits = Object.keys(manualEditsObj).length > 0;
@@ -757,11 +757,10 @@ export default function Index() {
                 <div className="mt-1 font-sans-soft text-xs text-muted-foreground">Pièce unique sur mesure</div>
               </div>
               <button
-                onClick={handleExportPdf}
-                disabled={exporting}
-                className="rounded-full bg-primary px-6 py-4 font-sans-soft text-base font-medium text-primary-foreground transition-opacity hover:opacity-95 disabled:opacity-60 soft-shadow-lg"
+                onClick={handleAddToCart}
+                className="rounded-full bg-primary px-6 py-4 font-sans-soft text-base font-medium text-primary-foreground transition-opacity hover:opacity-95 soft-shadow-lg"
               >
-                {exporting ? 'Préparation…' : 'Finaliser mon Fragment'}
+                Finaliser mon Fragment
               </button>
               <button
                 onClick={() => scrollTo(refFormat)}

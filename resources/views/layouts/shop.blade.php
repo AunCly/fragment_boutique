@@ -18,10 +18,17 @@
                 <a href="{{ route('shop.products') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('shop.products') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">Produits</a>
                 <a href="{{ route('shop.custom') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('shop.custom') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">Sur-mesure</a>
             </nav>
-            <button @click="isCartOpen = !isCartOpen" class="relative flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full font-sans-soft text-sm hover:opacity-90 transition">
-                Panier
-                <span x-show="totalItems > 0" class="bg-accent text-accent-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center" x-text="totalItems"></span>
-            </button>
+            <div class="flex items-center gap-3">
+                @if(session('shopify_customer_token'))
+                    <a href="{{ route('account.dashboard') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('account.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">Mon compte</a>
+                @else
+                    <a href="{{ route('account.login') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('account.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">Connexion</a>
+                @endif
+                <button @click="isCartOpen = !isCartOpen" class="relative flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full font-sans-soft text-sm hover:opacity-90 transition">
+                    Panier
+                    <span x-show="totalItems > 0" class="bg-accent text-accent-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center" x-text="totalItems"></span>
+                </button>
+            </div>
         </div>
     </header>
 
