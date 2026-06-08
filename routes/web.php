@@ -3,6 +3,7 @@
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\FaqController as AdminFaqController;
 use App\Http\Controllers\ShopifyController;
 use Illuminate\Support\Facades\Route;
 
@@ -37,5 +38,6 @@ Route::prefix('fragment-admin')->name('admin.')->group(function () {
     Route::middleware('admin.auth')->group(function () {
         Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
+        Route::resource('faqs', AdminFaqController::class)->except(['show']);
     });
 });

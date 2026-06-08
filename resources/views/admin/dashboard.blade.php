@@ -9,11 +9,11 @@
 </div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-    <div class="border border-border rounded-2xl bg-card p-6">
+    <a href="{{ route('admin.faqs.index') }}" class="border border-border rounded-2xl bg-card p-6 hover:bg-muted/50 transition block">
         <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground mb-2">FAQ</p>
-        <p class="font-serif text-2xl text-foreground">—</p>
+        <p class="font-serif text-2xl text-foreground">{{ $faqCount }}</p>
         <p class="font-sans-soft text-sm text-muted-foreground mt-1">Questions / réponses</p>
-    </div>
+    </a>
 
     <div class="border border-border rounded-2xl bg-card p-6">
         <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground mb-2">Bois</p>

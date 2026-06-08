@@ -18,6 +18,9 @@
                     <a href="{{ route('admin.dashboard') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.dashboard') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
                         Dashboard
                     </a>
+                    <a href="{{ route('admin.faqs.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.faqs.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
+                        FAQ
+                    </a>
                 </nav>
             </div>
             <form action="{{ route('admin.logout') }}" method="POST">
