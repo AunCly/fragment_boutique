@@ -1,0 +1,140 @@
+name: Déploiement EloyotGo
+
+on:
+  push:
+    branches: [ "develop" ]
+
+env:
+  RELEASE_DATE: $(date +%Y%m%d%H%M%S)
+  ROOT_DIR: /var/www
+  PROJECT_DIR: eloyotgo.auncly.dev/http
+  KEEP_RELEASE: 2
+  SSH_HOST: ${{ secrets.SSH_HOST }}
+
+jobs:
+
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Création d'une nouvelle variable environnement pour le répertoire de la nouvelle release
+      # car on ne peut pas utiliser des variables d'environnement concaténé dans les secrets
+      - name: Création d'une nouvelle variable environnement
+        run: |
+          echo "RELEASE_DIR_FROM_HOME=${{ env.PROJECT_DIR }}/releases/${{ env.RELEASE_DATE }}" >> $GITHUB_ENV
+          echo "RELEASE_DIR_FROM_ROOT=${{ env.ROOT_DIR }}/${{ env.PROJECT_DIR }}/releases/${{ env.RELEASE_DATE }}" >> $GITHUB_ENV
+          echo "PROJECT_DIR_FROM_ROOT=${{ env.ROOT_DIR }}/${{ env.PROJECT_DIR }}" >> $GITHUB_ENV
+
+      # Installation de PHP
+      - uses: shivammathur/setup-php@15c43e89cdef867065b0213be354c2841860869e
+        with:
+          php-version: '8.3'
+
+      # Clone du dépôt
+      - uses: actions/checkout@v3
+
+      # Installation de Composer et des dépendances. Si le cache existe, on l'utilise
+      - name: Get Composer Cache Directory
+        id: composer-cache
+        run: |
+          echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-composer-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist
+
+      # Installation de Node.js et build des assets Vite
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build assets
+        run: npm run build
+
+      # Création du fichier .ssh et copie de la clé ssh depuis github secret vers ~/.ssh/id_rsa
+      # pour pouvoir se connecter au serveur distant via rsync
+      - name: Copie de la clé ssh depuis github secret vers ~/.ssh/id_rsa
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 400 ~/.ssh/id_rsa
+
+      # Copie du fichier environnement et fusion du .env.example avec le .env situé dans
+      # le répertoire .github/env/.env_pre-release
+      - name: Copie du fichier environnement
+        run: |
+          cp .github/envs/.develop .env
+
+      # Ajout des secrets dans le fichier environnement
+      - name: Ajout des secrets dans le fichier environnement
+        run: |
+          set -e
+          echo '' >> .env
+          echo 'APP_KEY="${{ secrets.APP_KEY }}"' >> .env
+          echo 'DB_HOST="${{ secrets.DB_HOST }}"' >> .env
+          echo 'DB_DATABASE="${{ secrets.DB_DATABASE }}"' >> .env
+          echo 'DB_USERNAME="${{ secrets.DB_USERNAME }}"' >> .env
+          echo 'DB_PASSWORD="${{ secrets.DB_PASSWORD }}"' >> .env
+
+          echo 'DB_PASSWORD="${{ secrets.SHOPIFY_STORE_DOMAIN }}"' >> .env
+          echo 'DB_PASSWORD="${{ secrets.SHOPIFY_CLIENT_ID }}"' >> .env
+          echo 'DB_PASSWORD="${{ secrets.SHOPIFY_CLIENT_SECRET }}"' >> .env
+          echo 'DB_PASSWORD="${{ secrets.SHOPIFY_STOREFRONT_TOKEN }}"' >> .env
+
+      # Suppression des caches et optimisation
+      - name: Nettoyage des caches
+        run: php artisan optimize:clear
+
+      # Copie de tout le code source sur le serveur distant via rsync
+      - name: Copie du code source sur le serveur distant via rsync
+        run: |
+          rsync -avzR --rsync-path "mkdir -p ${{ env.PROJECT_DIR_FROM_ROOT }}/releases && rsync" --exclude '.github' --exclude '.git' --exclude '.docker' --relative ./ -e "ssh -i ~/.ssh/id_rsa -T -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }}" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:"${{ env.RELEASE_DIR_FROM_ROOT }}"
+
+      # Connexion au serveur distant via ssh et création des liens symboliques
+      - name: Connexion au serveur distant via ssh et création des liens symboliques
+        uses: appleboy/ssh-action@master
+        env:
+          REMOTE_RELEASE_DIR_FROM_HOME: ${{ env.RELEASE_DIR_FROM_HOME }}
+          REMOTE_RELEASE_DIR_FROM_ROOT: ${{ env.RELEASE_DIR_FROM_ROOT }}
+          REMOTE_PROJECT_DIR: ${{ env.PROJECT_DIR }}
+          PROJECT_DIR_FROM_ROOT: ${{ env.PROJECT_DIR_FROM_ROOT }}
+        with:
+          envs: REMOTE_RELEASE_DIR_FROM_HOME, REMOTE_RELEASE_DIR_FROM_ROOT, REMOTE_PROJECT_DIR, PROJECT_DIR_FROM_ROOT
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            set -e
+            trap 'if [ -d "$PROJECT_DIR_FROM_ROOT/current" ]; then cd $PROJECT_DIR_FROM_ROOT/current && php artisan up; fi' ERR
+            if [ -d "$PROJECT_DIR_FROM_ROOT/current" ]; then
+              echo "Mise en maintenance du site"
+              cd $PROJECT_DIR_FROM_ROOT/current && php artisan down
+            fi
+            if [ ! -d "$PROJECT_DIR_FROM_ROOT/storage" ]; then
+              echo "Creation du dossier storage partagé"
+              cp -R "$REMOTE_RELEASE_DIR_FROM_ROOT/storage" "$PROJECT_DIR_FROM_ROOT/storage"
+            fi
+            rm -rf $REMOTE_RELEASE_DIR_FROM_ROOT/storage
+            echo "creation des liens symboliques"
+            ln -s $PROJECT_DIR_FROM_ROOT/storage $REMOTE_RELEASE_DIR_FROM_ROOT/storage
+            ln -s $PROJECT_DIR_FROM_ROOT/storage/app/public $REMOTE_RELEASE_DIR_FROM_ROOT/public/storage
+            ln -s $PROJECT_DIR_FROM_ROOT/catalogue $REMOTE_RELEASE_DIR_FROM_ROOT/public
+            echo "Execution des migrations"
+            cd $REMOTE_RELEASE_DIR_FROM_ROOT && php artisan migrate --force
+            ln -sfn $REMOTE_RELEASE_DIR_FROM_ROOT $PROJECT_DIR_FROM_ROOT/current
+            echo "suppression des vieilles releases"
+            ls -dt $PROJECT_DIR_FROM_ROOT/releases/* | tail -n +${{env.KEEP_RELEASE}} | xargs rm -rf
+            if [ -d "$PROJECT_DIR_FROM_ROOT/current" ]; then
+              echo "Le site est de nouveau accessible"
+              cd $PROJECT_DIR_FROM_ROOT/current && php artisan up
+            fi
