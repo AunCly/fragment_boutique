@@ -85,10 +85,10 @@ jobs:
           echo 'DB_USERNAME="${{ secrets.DB_USERNAME }}"' >> .env
           echo 'DB_PASSWORD="${{ secrets.DB_PASSWORD }}"' >> .env
 
-          echo 'DB_PASSWORD="${{ secrets.SHOPIFY_STORE_DOMAIN }}"' >> .env
-          echo 'DB_PASSWORD="${{ secrets.SHOPIFY_CLIENT_ID }}"' >> .env
-          echo 'DB_PASSWORD="${{ secrets.SHOPIFY_CLIENT_SECRET }}"' >> .env
-          echo 'DB_PASSWORD="${{ secrets.SHOPIFY_STOREFRONT_TOKEN }}"' >> .env
+          echo 'SHOPIFY_STORE_DOMAIN="${{ secrets.SHOPIFY_STORE_DOMAIN }}"' >> .env
+          echo 'SHOPIFY_CLIENT_ID="${{ secrets.SHOPIFY_CLIENT_ID }}"' >> .env
+          echo 'SHOPIFY_CLIENT_SECRET="${{ secrets.SHOPIFY_CLIENT_SECRET }}"' >> .env
+          echo 'SHOPIFY_STOREFRONT_TOKEN="${{ secrets.SHOPIFY_STOREFRONT_TOKEN }}"' >> .env
 
       # Suppression des caches et optimisation
       - name: Nettoyage des caches
