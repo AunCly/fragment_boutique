@@ -60,6 +60,14 @@ jobs:
       - name: Build assets
         run: npm run build
 
+      - name: Install npm dependencies (builder)
+        run: npm ci
+        working-directory: resources/builder
+
+      - name: Build assets (builder)
+        run: npm run build
+        working-directory: resources/builder
+
       # Création du fichier .ssh et copie de la clé ssh depuis github secret vers ~/.ssh/id_rsa
       # pour pouvoir se connecter au serveur distant via rsync
       - name: Copie de la clé ssh depuis github secret vers ~/.ssh/id_rsa
@@ -67,6 +75,15 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 400 ~/.ssh/id_rsa
+
+      # Écriture du fichier .htpasswd sur le serveur à partir du secret GitHub Actions
+      # Le fichier est placé en dehors du dossier de release pour persister entre les déploiements,
+      # à côté de "storage", "releases" et "current"
+      - name: Écriture du fichier .htpasswd sur le serveur
+        env:
+          HTPASSWD_CONTENT: ${{ secrets.HTPASSWD }}
+        run: |
+          echo "$HTPASSWD_CONTENT" | ssh -i ~/.ssh/id_rsa -T -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p ${{ env.PROJECT_DIR_FROM_ROOT }} && cat > ${{ env.PROJECT_DIR_FROM_ROOT }}/.htpasswd && chmod 640 ${{ env.PROJECT_DIR_FROM_ROOT }}/.htpasswd"
 
       # Copie du fichier environnement et fusion du .env.example avec le .env situé dans
       # le répertoire .github/env/.env_pre-release
