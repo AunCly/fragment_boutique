@@ -116,16 +116,16 @@
         x-transition:leave="transition ease-in duration-150"
         x-transition:leave-start="opacity-100 translate-x-0"
         x-transition:leave-end="opacity-0 translate-x-4"
-        class="fixed top-0 right-0 h-full w-80 bg-card border-l border-border shadow-xl z-50 flex flex-col"
+        class="fixed top-0 right-0 h-full w-full max-w-md bg-card border-l border-border shadow-xl z-50 flex flex-col"
     >
         <div class="flex items-center justify-between px-5 py-4 border-b border-border">
             <h2 class="font-serif text-lg text-foreground">Panier</h2>
             <button @click="isCartOpen = false" class="text-muted-foreground hover:text-foreground text-xl leading-none">&times;</button>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+        <div class="flex-1 overflow-y-auto px-5 py-4 space-y-4 flex flex-col" :class="items.length === 0 ? 'items-center justify-center' : ''">
             <template x-if="items.length === 0">
-                <p class="font-sans-soft text-muted-foreground text-sm text-center mt-8">Votre panier est vide</p>
+                <p class="font-sans-soft text-muted-foreground text-sm text-center">Votre panier est vide</p>
             </template>
             <template x-for="(item, index) in items" :key="index">
                 <div class="flex items-start justify-between gap-3">
@@ -152,10 +152,14 @@
                 @click="checkout()"
                 :disabled="items.length === 0"
                 :class="items.length === 0 ? 'opacity-40 cursor-not-allowed' : ''"
-                class="w-full py-2.5 px-4 bg-primary text-primary-foreground rounded-full font-sans-soft text-sm hover:opacity-90 transition"
+                class="w-full inline-flex items-center justify-center gap-2 px-8 py-4 bg-primary text-background font-sans-soft text-sm uppercase hover:opacity-90 transition"
             >
-                <span x-show="!isCheckingOut">Passer commande →</span>
+                <span x-show="!isCheckingOut">Passer commande</span>
                 <span x-show="isCheckingOut">Chargement...</span>
+                <svg x-show="!isCheckingOut" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M5 12h14"/>
+                    <path d="m13 6 6 6-6 6"/>
+                </svg>
             </button>
         </div>
     </div>
