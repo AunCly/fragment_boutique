@@ -76,6 +76,20 @@ class ShopifyController extends Controller
         return view('shop.workshop');
     }
 
+    public function gallery(): View
+    {
+        $images = [
+            ['path' => 'resources/images/gallery/gallery-1-Cuy0LPkR.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
+            ['path' => 'resources/images/gallery/product-owl-D5LQ9sc5.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
+            ['path' => 'resources/images/gallery/gallery-2-Dc8Qmn3J.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
+            ['path' => 'resources/images/gallery/product-mountains-C2h_MNwy.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
+            ['path' => 'resources/images/gallery/gallery-3-CCzQGLN0.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
+            ['path' => 'resources/images/gallery/product-geo2-BEs2mhOM.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
+        ];
+
+        return view('shop.gallery', compact('images'));
+    }
+
     public function custom(): View
     {
         $woodTextures = WoodTexture::active()->ordered()->get()->map->toBuilderEntry()->values();
