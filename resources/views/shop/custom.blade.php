@@ -6,6 +6,10 @@
     <div id="builder-root"></div>
 @endsection
 
+@push('head')
+    <link rel="stylesheet" href="{{ asset('builder/assets/index.css') }}">
+@endpush
+
 @push('body')
     <script>
         window.FRAGMENT_WOOD_TEXTURES = @json($woodTextures);

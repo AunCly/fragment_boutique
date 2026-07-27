@@ -9,7 +9,11 @@ export default defineConfig({
             input: ['resources/css/app.css', 'resources/js/app.js'],
             refresh: true,
             fonts: [
-                bunny('Instrument Sans', {
+                bunny('Fraunces', {
+                    weights: [400, 500, 600],
+                    styles: ['normal', 'italic'],
+                }),
+                bunny('Inter', {
                     weights: [400, 500, 600],
                 }),
             ],

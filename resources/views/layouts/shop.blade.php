@@ -6,27 +6,45 @@
     <title>Fragment Boutique</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    <link rel="stylesheet" href="{{ asset('builder/assets/index.css') }}">
     @stack('head')
 </head>
-<body class="fragment-theme antialiased" x-data="shop()">
+<body class="antialiased bg-background text-foreground" x-data="shop()">
 
-    <header class="bg-card border-b border-border sticky top-0 z-40">
-        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-            <nav class="flex items-center gap-6">
-                <a href="{{ route('shop.index') }}" class="font-serif text-xl tracking-tight text-foreground">Fragment Boutique</a>
-                <a href="{{ route('shop.products') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('shop.products') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">Produits</a>
-                <a href="{{ route('shop.custom') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('shop.custom') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">Sur-mesure</a>
+    <header class="bg-background border-b border-[#dbd3c6] sticky top-0 z-40">
+        <div class="relative max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <a href="{{ route('shop.index') }}" class="font-serif text-2xl tracking-tight text-foreground">Fragment<span class="text-primary">.</span></a>
+
+            <nav class="hidden md:flex items-center gap-8 absolute left-1/2 -translate-x-1/2">
+                <span class="relative font-sans-soft text-sm text-foreground after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:scale-x-100">Collection</span>
+                <span class="relative font-sans-soft text-sm text-foreground after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:scale-x-100">Créez votre fragment</span>
+                <span class="relative font-sans-soft text-sm text-foreground after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:scale-x-100">Comment ça marche</span>
+                <span class="relative font-sans-soft text-sm text-foreground after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:scale-x-100">Atelier</span>
+                <span class="relative font-sans-soft text-sm text-foreground after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:scale-x-100">Galerie</span>
             </nav>
-            <div class="flex items-center gap-3">
+
+            <div class="flex items-center gap-1">
                 @if(session('shopify_customer_token'))
-                    <a href="{{ route('account.dashboard') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('account.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">Mon compte</a>
+                    <a href="{{ route('account.dashboard') }}" aria-label="Mon compte" class="flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-muted hover:text-accent {{ request()->routeIs('account.*') ? 'text-accent' : 'text-foreground' }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M20 21a8 8 0 0 0-16 0"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </a>
                 @else
-                    <a href="{{ route('account.login') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('account.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">Connexion</a>
+                    <a href="{{ route('account.login') }}" aria-label="Connexion" class="flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-muted hover:text-accent {{ request()->routeIs('account.*') ? 'text-accent' : 'text-foreground' }}">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                            <path d="M20 21a8 8 0 0 0-16 0"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </a>
                 @endif
-                <button @click="isCartOpen = !isCartOpen" class="relative flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-full font-sans-soft text-sm hover:opacity-90 transition">
-                    Panier
-                    <span x-show="totalItems > 0" class="bg-accent text-accent-foreground text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center" x-text="totalItems"></span>
+                <button @click="isCartOpen = !isCartOpen" aria-label="Panier" class="relative flex h-10 w-10 items-center justify-center rounded-full text-foreground transition hover:bg-muted hover:text-accent">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/>
+                        <path d="M3 6h18"/>
+                        <path d="M16 10a4 4 0 0 1-8 0"/>
+                    </svg>
+                    <span x-show="totalItems > 0" class="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground" x-text="totalItems"></span>
                 </button>
             </div>
         </div>
