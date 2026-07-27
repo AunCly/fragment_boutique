@@ -135,4 +135,75 @@
             </div>
         </div>
     </section>
+
+    <section class="bg-[#f9f5ec] py-16 md:py-24">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-12 md:gap-16 items-center">
+                <div>
+                    <img
+                        src="{{ Vite::asset('resources/images/atelier-hands.jpg') }}"
+                        alt="Mains façonnant un tableau en bois Fragment dans l'atelier"
+                        class="w-full h-auto rounded-lg"
+                    >
+                </div>
+
+                <div>
+                    <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground">
+                        Comment ça marche
+                    </p>
+
+                    <h2 class="font-serif font-normal text-4xl leading-none text-foreground mt-4">
+                        Choisir, recevoir, assembler, accrocher.
+                    </h2>
+
+                    <div class="mt-8 border-t border-[#dbd3c6] divide-y divide-[#dbd3c6]">
+                        <div class="flex gap-6 py-6">
+                            <span class="font-serif text-2xl text-primary">01</span>
+                            <div>
+                                <h3 class="font-serif text-lg text-foreground">Choisissez</h3>
+                                <p class="font-sans-soft text-foreground/80 text-sm mt-1 leading-relaxed">Sélectionnez un tableau dans la collection, ou envoyez votre propre image.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-6 py-6">
+                            <span class="font-serif text-2xl text-primary">02</span>
+                            <div>
+                                <h3 class="font-serif text-lg text-foreground">Recevez</h3>
+                                <p class="font-sans-soft text-foreground/80 text-sm mt-1 leading-relaxed">Un kit complet arrive chez vous : le cadre, toutes les pièces de bois, la pince et le plan de montage.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-6 py-6">
+                            <span class="font-serif text-2xl text-primary">03</span>
+                            <div>
+                                <h3 class="font-serif text-lg text-foreground">Assemblez</h3>
+                                <p class="font-sans-soft text-foreground/80 text-sm mt-1 leading-relaxed">Placez chaque pièce de bois selon le plan. Aucun outil ni compétence requis.</p>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-6 py-6">
+                            <span class="font-serif text-2xl text-primary">04</span>
+                            <div>
+                                <h3 class="font-serif text-lg text-foreground">Accrochez</h3>
+                                <p class="font-sans-soft text-foreground/80 text-sm mt-1 leading-relaxed">Votre tableau est prêt à être posé chez vous. Vous l'avez fait vous-même.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-8">
+                        <a
+                            href="#"
+                            class="relative inline-flex items-center gap-1 font-sans-soft text-sm text-foreground after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:scale-x-100"
+                        >
+                            Voir toutes les étapes
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M5 12h14"/>
+                                <path d="m13 6 6 6-6 6"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 @endsection
