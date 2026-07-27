@@ -71,6 +71,11 @@ class ShopifyController extends Controller
         return view('shop.how-it-works', compact('faqs'));
     }
 
+    public function workshop(): View
+    {
+        return view('shop.workshop');
+    }
+
     public function custom(): View
     {
         $woodTextures = WoodTexture::active()->ordered()->get()->map->toBuilderEntry()->values();

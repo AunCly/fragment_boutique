@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [ShopifyController::class, 'index'])->name('shop.index');
 Route::get('/collection', [ShopifyController::class, 'products'])->name('shop.products');
 Route::get('/comment-ca-marche', [ShopifyController::class, 'howItWorks'])->name('shop.how-it-works');
+Route::get('/atelier', [ShopifyController::class, 'workshop'])->name('shop.workshop');
 Route::get('/custom', [ShopifyController::class, 'custom'])->name('shop.custom');
 Route::post('/checkout', [ShopifyController::class, 'checkout'])->name('shop.checkout');
 
