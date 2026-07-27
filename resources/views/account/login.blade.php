@@ -35,7 +35,7 @@
                 value="{{ old('email') }}"
                 required
                 autocomplete="email"
-                class="w-full px-4 py-3 bg-muted border border-border rounded-xl font-sans-soft text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground transition"
+                class="w-full px-4 py-3 bg-muted border border-border font-sans-soft text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground transition"
             >
         </div>
 
@@ -46,7 +46,7 @@
                 name="password"
                 required
                 autocomplete="current-password"
-                class="w-full px-4 py-3 bg-muted border border-border rounded-xl font-sans-soft text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground transition"
+                class="w-full px-4 py-3 bg-muted border border-border font-sans-soft text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground transition"
             >
         </div>
 
@@ -56,7 +56,7 @@
 
         <button
             type="submit"
-            class="w-full py-3 bg-primary text-primary-foreground rounded-full font-sans-soft text-sm font-medium hover:opacity-90 transition"
+            class="w-full py-4 bg-primary text-background font-sans-soft text-sm uppercase hover:opacity-90 transition"
         >
             Se connecter
         </button>

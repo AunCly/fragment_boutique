@@ -48,7 +48,7 @@
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <template x-for="product in filtered" :key="product.id">
-                <div class="group">
+                <a :href="'{{ url('/collection') }}/' + product.id.split('/').pop()" class="group block">
                     <div class="w-full aspect-square rounded-lg overflow-hidden" x-show="product.image">
                         <img :src="product.image" :alt="product.imageAlt" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
                     </div>
@@ -60,7 +60,7 @@
                         </div>
                         <p class="font-sans-soft text-sm text-foreground/80" x-text="product.priceFormatted"></p>
                     </div>
-                </div>
+                </a>
             </template>
         </div>
     </section>

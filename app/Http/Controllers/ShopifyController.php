@@ -41,6 +41,15 @@ class ShopifyController extends Controller
         return view('shop.products', compact('products', 'filterGroups'));
     }
 
+    public function product(string $id): View
+    {
+        $product = $this->storefront->fetchProduct($id);
+
+        abort_if(! $product, 404);
+
+        return view('shop.product', compact('product'));
+    }
+
     /**
      * @param  array<int, array{tags: array<string, string>}>  $products
      * @return array<int, array{name: string, values: array<int, string>}>

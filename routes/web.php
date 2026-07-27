@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [ShopifyController::class, 'index'])->name('shop.index');
 Route::get('/collection', [ShopifyController::class, 'products'])->name('shop.products');
+Route::get('/collection/{id}', [ShopifyController::class, 'product'])->name('shop.product')->where('id', '[0-9]+');
 Route::get('/comment-ca-marche', [ShopifyController::class, 'howItWorks'])->name('shop.how-it-works');
 Route::get('/atelier', [ShopifyController::class, 'workshop'])->name('shop.workshop');
 Route::get('/galerie', [ShopifyController::class, 'gallery'])->name('shop.gallery');

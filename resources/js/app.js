@@ -111,6 +111,66 @@ Alpine.data('shop', () => ({
     },
 }));
 
+Alpine.data('productPage', (product) => ({
+    product,
+    selected: {},
+    mainImage: null,
+    sizeOrder: ['S', 'M', 'L', 'XL'],
+    sizeDimensions: {
+        S: '10 x 10 cm',
+        M: '20 x 20 cm',
+        L: '30 x 30 cm',
+        XL: '40 x 40 cm',
+    },
+
+    init() {
+        this.product.options.forEach((option) => {
+            this.selected[option.name] = option.values[0];
+        });
+        this.mainImage = this.product.images[0]?.url ?? null;
+    },
+
+    get visibleOptions() {
+        return this.product.options.filter((option) => (
+            !(option.values.length === 1 && option.values[0] === 'Default Title')
+        ));
+    },
+
+    optionValues(option) {
+        if (option.name !== 'Taille') {
+            return option.values.map((value) => ({ value, available: true }));
+        }
+
+        return this.sizeOrder.map((value) => ({
+            value,
+            available: option.values.includes(value),
+            dimension: this.sizeDimensions[value],
+        }));
+    },
+
+    selectOption(name, value) {
+        this.selected[name] = value;
+    },
+
+    selectImage(url) {
+        this.mainImage = url;
+    },
+
+    get currentVariant() {
+        return this.product.variants.find((variant) => (
+            Object.entries(this.selected).every(([name, value]) => variant.selectedOptions[name] === value)
+        )) ?? this.product.variants[0];
+    },
+
+    get currentPriceFormatted() {
+        return new Intl.NumberFormat('fr-FR', {
+            style: 'currency',
+            currency: this.currentVariant.currency,
+            maximumFractionDigits: 0,
+        }).format(this.currentVariant.price);
+    },
+}));
+
 Alpine.data('collectionFilters', (products, groups) => ({
     products,
     groups,

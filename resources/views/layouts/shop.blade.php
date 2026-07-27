@@ -45,7 +45,7 @@
                         <path d="M3 6h18"/>
                         <path d="M16 10a4 4 0 0 1-8 0"/>
                     </svg>
-                    <span x-show="totalItems > 0" class="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-accent-foreground" x-text="totalItems"></span>
+                    <span x-show="totalItems > 0" class="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-[#f6efe4]" x-text="totalItems"></span>
                 </button>
             </div>
         </div>
@@ -128,9 +128,15 @@
                 <p class="font-sans-soft text-muted-foreground text-sm text-center">Votre panier est vide</p>
             </template>
             <template x-for="(item, index) in items" :key="index">
-                <div class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-16 h-16 rounded-lg overflow-hidden bg-muted shrink-0" x-show="item.image">
+                        <img :src="item.image" :alt="item.title" class="w-full h-full object-cover">
+                    </div>
                     <div class="flex-1">
                         <p class="font-sans-soft text-sm font-medium text-foreground" x-text="item.title"></p>
+                        <template x-if="item.options">
+                            <p class="font-sans-soft text-xs text-muted-foreground mt-0.5" x-text="Object.values(item.options).join(' · ')"></p>
+                        </template>
                         <p class="font-sans-soft text-xs text-muted-foreground mt-0.5" x-text="formatPrice(item.price, item.currency)"></p>
                     </div>
                     <div class="flex items-center gap-2">
