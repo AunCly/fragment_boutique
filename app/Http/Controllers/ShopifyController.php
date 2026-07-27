@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Faq;
 use App\Models\Format;
 use App\Models\WoodTexture;
 use App\Services\ShopifyAdminService;
@@ -61,6 +62,13 @@ class ShopifyController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    public function howItWorks(): View
+    {
+        $faqs = Faq::active()->ordered()->get();
+
+        return view('shop.how-it-works', compact('faqs'));
     }
 
     public function custom(): View
