@@ -1,4 +1,5 @@
 import Alpine from 'alpinejs';
+import '../images/hero-evoli-room.png';
 
 Alpine.data('shop', () => ({
     items: [],

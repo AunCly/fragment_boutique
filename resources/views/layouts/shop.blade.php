@@ -6,6 +6,7 @@
     <title>Fragment Boutique</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{ Vite::fonts() }}
     @stack('head')
 </head>
 <body class="antialiased bg-background text-foreground" x-data="shop()">
