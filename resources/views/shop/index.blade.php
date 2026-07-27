@@ -306,4 +306,38 @@
             </div>
         </div>
     </section>
+
+    <div class="max-w-6xl mx-auto px-4">
+        <div class="border-t border-[#dbd3c6]"></div>
+    </div>
+
+    <section class="max-w-2xl mx-auto px-4 py-16 md:py-24 text-center">
+        <h2 class="font-serif font-normal text-5xl leading-none text-foreground">
+            Prêt à créer le vôtre ?
+        </h2>
+
+        <p class="font-sans-soft text-foreground/80 mt-6 leading-relaxed">
+            Un tableau en bois, assemblé par vous, fait pour rester chez vous longtemps.
+        </p>
+
+        <div class="flex items-center justify-center gap-8 mt-8">
+            <a
+                href="{{ route('shop.products') }}"
+                class="inline-flex items-center gap-2 px-8 py-4 bg-primary text-background font-sans-soft text-sm uppercase hover:opacity-90 transition"
+            >
+                Découvrir la collection
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M5 12h14"/>
+                    <path d="m13 6 6 6-6 6"/>
+                </svg>
+            </a>
+
+            <a
+                href="{{ route('shop.custom') }}"
+                class="relative inline-block font-sans-soft text-sm text-foreground after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:scale-x-100"
+            >
+                Créer mon fragment
+            </a>
+        </div>
+    </section>
 @endsection
