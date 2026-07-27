@@ -206,4 +206,45 @@
             </div>
         </div>
     </section>
+
+    <section class="bg-[#f6efe4] py-16 md:py-24">
+        <div class="max-w-6xl mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-[40%_60%] gap-12 md:gap-16 items-center">
+                <div>
+                    <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground">
+                        L'atelier
+                    </p>
+
+                    <h2 class="font-serif font-normal text-4xl leading-none text-foreground mt-4">
+                        Du bois français, dessiné et découpé chez nous.
+                    </h2>
+
+                    <p class="font-sans-soft text-foreground/80 mt-6 leading-relaxed">
+                        Chaque Fragment est dessiné, découpé et préparé dans notre atelier, à partir d'essences françaises : chêne, hêtre, noyer, frêne. Nous trions les pièces à la main pour que les couleurs tombent juste.
+                    </p>
+
+                    <div class="mt-8">
+                        <a
+                            href="#"
+                            class="relative inline-flex items-center gap-1 font-sans-soft text-sm text-foreground after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:scale-x-100"
+                        >
+                            Visiter l'atelier
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M5 12h14"/>
+                                <path d="m13 6 6 6-6 6"/>
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+
+                <div>
+                    <img
+                        src="{{ Vite::asset('resources/images/atelier-workshop.jpg') }}"
+                        alt="Atelier Fragment : découpe du bois français"
+                        class="w-full h-auto rounded-lg"
+                    >
+                </div>
+            </div>
+        </div>
+    </section>
 @endsection
