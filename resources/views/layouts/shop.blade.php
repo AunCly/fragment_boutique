@@ -55,6 +55,58 @@
         @yield('content')
     </main>
 
+    <footer class="bg-[#f9f5ec] border-t border-[#dbd3c6]">
+        <div class="max-w-6xl mx-auto px-4 pt-16 pb-6">
+            <div class="grid grid-cols-1 md:grid-cols-[50%_50%] gap-12">
+                <div>
+                    <h2 class="font-serif font-normal text-3xl leading-snug text-foreground">
+                        Fragment est un atelier français
+                        <br>
+                        qui fabrique des tableaux en bois à assembler soi-même.
+                    </h2>
+
+                    <p class="font-sans-soft text-sm text-foreground/80 mt-6 leading-relaxed">
+                        Vous choisissez un motif, vous recevez toutes les pièces, vous l'assemblez chez vous. Chaque kit est dessiné, découpé et préparé dans notre atelier.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-2 gap-8">
+                    <div>
+                        <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground">Boutique</p>
+                        <ul class="mt-4 space-y-1.5">
+                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Collection</a></li>
+                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Comment ça marche</a></li>
+                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">L'atelier</a></li>
+                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Galerie</a></li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground">Maison</p>
+                        <ul class="mt-4 space-y-1.5">
+                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Contact</a></li>
+                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Livraison</a></li>
+                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Retours</a></li>
+                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Instagram</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="border-t border-[#dbd3c6] mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                <p class="font-sans-soft text-xs text-muted-foreground">© {{ date('Y') }} Fragment — Fabriqué en France</p>
+
+                <div class="flex items-center gap-2">
+                    <a href="#" class="font-sans-soft text-xs text-muted-foreground hover:text-foreground transition">Mentions légales</a>
+                    <span class="font-sans-soft text-xs text-muted-foreground">·</span>
+                    <a href="#" class="font-sans-soft text-xs text-muted-foreground hover:text-foreground transition">CGV</a>
+                    <span class="font-sans-soft text-xs text-muted-foreground">·</span>
+                    <a href="#" class="font-sans-soft text-xs text-muted-foreground hover:text-foreground transition">Confidentialité</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
     {{-- Panier flottant --}}
     <div
         x-show="isCartOpen"
