@@ -111,4 +111,28 @@ Alpine.data('shop', () => ({
     },
 }));
 
+Alpine.data('collectionFilters', (products, groups) => ({
+    products,
+    groups,
+    selected: {},
+
+    init() {
+        this.groups.forEach((group) => {
+            this.selected[group.name] = null;
+        });
+    },
+
+    toggle(name, value) {
+        this.selected[name] = this.selected[name] === value ? null : value;
+    },
+
+    get filtered() {
+        return this.products.filter((product) => (
+            Object.entries(this.selected).every(([name, value]) => (
+                !value || product.tags[name] === value
+            ))
+        ));
+    },
+}));
+
 Alpine.start();

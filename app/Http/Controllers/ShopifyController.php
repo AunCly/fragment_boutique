@@ -27,8 +27,40 @@ class ShopifyController extends Controller
     public function products(): View
     {
         $products = $this->storefront->fetchProducts();
+        $filterGroups = $this->buildFilterGroups($products);
 
-        return view('shop.products', compact('products'));
+        $products = collect($products)
+            ->map(fn (array $product) => [
+                ...$product,
+                'priceFormatted' => number_format((float) $product['price'], 0, ',', ' ').' €',
+            ])
+            ->values()
+            ->all();
+
+        return view('shop.products', compact('products', 'filterGroups'));
+    }
+
+    /**
+     * @param  array<int, array{tags: array<string, string>}>  $products
+     * @return array<int, array{name: string, values: array<int, string>}>
+     */
+    private function buildFilterGroups(array $products): array
+    {
+        $values = [];
+
+        foreach ($products as $product) {
+            foreach ($product['tags'] as $name => $value) {
+                $values[$name][$value] = true;
+            }
+        }
+
+        return collect($values)
+            ->map(fn (array $tagValues, string $name) => [
+                'name' => $name,
+                'values' => array_keys($tagValues),
+            ])
+            ->values()
+            ->all();
     }
 
     public function custom(): View
