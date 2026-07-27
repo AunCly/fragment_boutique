@@ -16,19 +16,20 @@ class ShopifyStorefrontService
     }
 
     /**
-     * @return array<int, array{id: string, title: string, price: string, image: string|null, variantId: string}>
+     * @return array<int, array{id: string, title: string, price: string, image: string|null, variantId: string, category: string}>
      *
      * @throws ConnectionException
      */
-    public function fetchProducts(): array
+    public function fetchProducts(int $first = 20): array
     {
-        $query = <<<'GRAPHQL'
+        $query = <<<GRAPHQL
         {
-            products(first: 20) {
+            products(first: {$first}) {
                 edges {
                     node {
                         id
                         title
+                        productType
                         variants(first: 1) {
                             edges {
                                 node {
@@ -73,6 +74,7 @@ class ShopifyStorefrontService
                 'image' => $node['featuredImage']['url'] ?? null,
                 'imageAlt' => $node['featuredImage']['altText'] ?? $node['title'],
                 'variantId' => $variant['id'],
+                'category' => $node['productType'] ?: 'UNDEFINED',
             ];
         }
 

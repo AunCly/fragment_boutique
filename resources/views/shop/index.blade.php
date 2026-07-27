@@ -50,4 +50,52 @@
             </div>
         </div>
     </section>
+
+    <section class="max-w-6xl mx-auto px-4 py-16 md:py-24">
+        <div class="grid grid-cols-1 md:grid-cols-[60%_40%] gap-12 md:gap-16 items-end">
+            <div>
+                <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground">
+                    Collection
+                </p>
+
+                <h2 class="font-serif font-normal text-3xl leading-none text-foreground mt-4">
+                    Nos Fragments
+                </h2>
+
+                <p class="font-sans-soft text-foreground/80 mt-6 leading-relaxed">
+                    Chaque Fragment est un tableau en bois à assembler. Choisissez un motif, un format, et recevez tout ce qu'il faut pour le monter chez vous.
+                </p>
+            </div>
+
+            <div class="md:text-right">
+                <a
+                    href="{{ route('shop.products') }}"
+                    class="relative inline-block font-sans-soft text-sm text-foreground after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:scale-x-100"
+                >
+                    Voir toute la collection
+                </a>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mt-12">
+            @foreach($fragments as $fragment)
+                <div class="group">
+                    @if($fragment['image'])
+                        <div class="w-full aspect-square rounded-lg overflow-hidden">
+                            <img src="{{ $fragment['image'] }}" alt="{{ $fragment['imageAlt'] }}" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                        </div>
+                    @else
+                        <div class="w-full aspect-square bg-muted rounded-lg flex items-center justify-center text-muted-foreground font-sans-soft text-sm">Pas d'image</div>
+                    @endif
+                    <div class="flex items-start justify-between mt-4">
+                        <div>
+                            <p class="font-serif text-foreground">{{ $fragment['title'] }}</p>
+                            <p class="font-sans-soft text-xs text-muted-foreground mt-1">{{ $fragment['category'] }}</p>
+                        </div>
+                        <p class="font-sans-soft text-sm text-foreground">{{ number_format((float) $fragment['price'], 2, ',', ' ') }} €</p>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </section>
 @endsection

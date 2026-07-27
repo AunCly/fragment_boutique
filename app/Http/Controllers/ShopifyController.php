@@ -19,7 +19,9 @@ class ShopifyController extends Controller
 
     public function index(): View
     {
-        return view('shop.index');
+        $fragments = $this->storefront->fetchProducts(4);
+
+        return view('shop.index', compact('fragments'));
     }
 
     public function products(): View
