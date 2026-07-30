@@ -3,8 +3,15 @@
 @section('main-class', 'w-full')
 
 @section('content')
-    <section class="max-w-6xl mx-auto px-4 py-16 md:py-24">
-        <div class="grid grid-cols-1 md:grid-cols-[40%_60%] gap-12 md:gap-16 items-center">
+    <section class="relative overflow-hidden">
+        <img
+            src="{{ Vite::asset('resources/images/h_wood_line_cream_dark_full.png') }}"
+            alt=""
+            aria-hidden="true"
+            class="pointer-events-none select-none absolute inset-0 w-full h-full object-cover opacity-40"
+        >
+
+        <div class="relative max-w-6xl mx-auto px-4 py-16 md:py-24 grid grid-cols-1 md:grid-cols-[40%_60%] gap-12 md:gap-16 items-center">
             <div>
                 <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground">
                     Atelier français · Tableaux en bois à assembler

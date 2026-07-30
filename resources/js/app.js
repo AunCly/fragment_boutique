@@ -1,5 +1,6 @@
 import Alpine from 'alpinejs';
-import '../images/hero-evoli-room.png';
+
+import.meta.glob(['../images/**/*.jpg', '../images/**/*.jpeg', '../images/**/*.png', '../images/**/*.webp'], { eager: true });
 
 Alpine.data('shop', () => ({
     items: [],
