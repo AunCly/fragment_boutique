@@ -13,7 +13,7 @@ concurrency:
 env:
   # Dossier du projet, relatif au home du compte OVH (ex: /homez.123/login/www)
   # Le "Dossier racine" du domaine dans le manager OVH doit pointer sur : www/current/public
-  PROJECT_DIR: www
+  PROJECT_DIR: www/fragment
   KEEP_RELEASE: 3
   # Binaire PHP CLI d'OVH (la commande "php" par défaut en SSH n'est pas forcément en 8.4)
   PHP_BIN: /usr/local/php8.4/bin/php
