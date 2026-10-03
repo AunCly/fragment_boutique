@@ -1,36 +1,38 @@
-name: Déploiement EloyotGo
+name: Déploiement OVH
 
 on:
   push:
     branches: [ "develop" ]
+  workflow_dispatch:
+
+# Évite deux déploiements simultanés sur le serveur
+concurrency:
+  group: deploy-ovh
+  cancel-in-progress: false
 
 env:
-  RELEASE_DATE: $(date +%Y%m%d%H%M%S)
-  ROOT_DIR: /var/www
-  PROJECT_DIR: eloyotgo.auncly.dev/http
-  KEEP_RELEASE: 2
-  SSH_HOST: ${{ secrets.SSH_HOST }}
+  # Dossier du projet, relatif au home du compte OVH (ex: /homez.123/login/fragment)
+  # Le "Dossier racine" du domaine dans le manager OVH doit pointer sur : fragment/current/public
+  PROJECT_DIR: fragment
+  KEEP_RELEASE: 3
+  # Binaire PHP CLI d'OVH (la commande "php" par défaut en SSH n'est pas forcément en 8.4)
+  PHP_BIN: /usr/local/php8.4/bin/php
 
 jobs:
 
   deploy:
     runs-on: ubuntu-latest
     steps:
-      # Création d'une nouvelle variable environnement pour le répertoire de la nouvelle release
-      # car on ne peut pas utiliser des variables d'environnement concaténé dans les secrets
-      - name: Création d'une nouvelle variable environnement
-        run: |
-          echo "RELEASE_DIR_FROM_HOME=${{ env.PROJECT_DIR }}/releases/${{ env.RELEASE_DATE }}" >> $GITHUB_ENV
-          echo "RELEASE_DIR_FROM_ROOT=${{ env.ROOT_DIR }}/${{ env.PROJECT_DIR }}/releases/${{ env.RELEASE_DATE }}" >> $GITHUB_ENV
-          echo "PROJECT_DIR_FROM_ROOT=${{ env.ROOT_DIR }}/${{ env.PROJECT_DIR }}" >> $GITHUB_ENV
+      - name: Définition du dossier de la release
+        run: echo "RELEASE_DATE=$(date +%Y%m%d%H%M%S)" >> $GITHUB_ENV
 
-      # Installation de PHP
-      - uses: shivammathur/setup-php@15c43e89cdef867065b0213be354c2841860869e
+      # Installation de PHP (même version que l'hébergement)
+      - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          php-version: '8.4'
 
       # Clone du dépôt
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       # Installation de Composer et des dépendances. Si le cache existe, on l'utilise
       - name: Get Composer Cache Directory
@@ -45,9 +47,9 @@ jobs:
             ${{ runner.os }}-composer-
 
       - name: Install dependencies
-        run: composer install --prefer-dist
+        run: composer install --prefer-dist --no-dev --optimize-autoloader --no-interaction
 
-      # Installation de Node.js et build des assets Vite
+      # Installation de Node.js et build des assets Vite (Node n'est pas disponible sur le mutualisé OVH)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -68,34 +70,21 @@ jobs:
         run: npm run build
         working-directory: resources/builder
 
-      # Création du fichier .ssh et copie de la clé ssh depuis github secret vers ~/.ssh/id_rsa
-      # pour pouvoir se connecter au serveur distant via rsync
-      - name: Copie de la clé ssh depuis github secret vers ~/.ssh/id_rsa
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 400 ~/.ssh/id_rsa
+      # Connexion SSH par utilisateur / mot de passe via sshpass
+      - name: Installation de sshpass
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
 
-      # Écriture du fichier .htpasswd sur le serveur à partir du secret GitHub Actions
-      # Le fichier est placé en dehors du dossier de release pour persister entre les déploiements,
-      # à côté de "storage", "releases" et "current"
-      - name: Écriture du fichier .htpasswd sur le serveur
-        env:
-          HTPASSWD_CONTENT: ${{ secrets.HTPASSWD }}
-        run: |
-          echo "$HTPASSWD_CONTENT" | ssh -i ~/.ssh/id_rsa -T -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "mkdir -p ${{ env.PROJECT_DIR_FROM_ROOT }} && cat > ${{ env.PROJECT_DIR_FROM_ROOT }}/.htpasswd && chmod 640 ${{ env.PROJECT_DIR_FROM_ROOT }}/.htpasswd"
-
-      # Copie du fichier environnement et fusion du .env.example avec le .env situé dans
-      # le répertoire .github/env/.env_pre-release
+      # Copie du fichier environnement
       - name: Copie du fichier environnement
         run: |
-          cp .github/envs/.develop .env
+          cp .github/envs/.production .env
 
       # Ajout des secrets dans le fichier environnement
       - name: Ajout des secrets dans le fichier environnement
         run: |
           set -e
           echo '' >> .env
+          echo 'APP_URL="${{ secrets.APP_URL }}"' >> .env
           echo 'APP_KEY="${{ secrets.APP_KEY }}"' >> .env
           echo 'DB_HOST="${{ secrets.DB_HOST }}"' >> .env
           echo 'DB_DATABASE="${{ secrets.DB_DATABASE }}"' >> .env
@@ -107,51 +96,93 @@ jobs:
           echo 'SHOPIFY_CLIENT_SECRET="${{ secrets.SHOPIFY_CLIENT_SECRET }}"' >> .env
           echo 'SHOPIFY_STOREFRONT_TOKEN="${{ secrets.SHOPIFY_STOREFRONT_TOKEN }}"' >> .env
 
-      # Suppression des caches et optimisation
+      # Suppression des caches
       - name: Nettoyage des caches
         run: php artisan optimize:clear
 
-      # Copie de tout le code source sur le serveur distant via rsync
-      - name: Copie du code source sur le serveur distant via rsync
-        run: |
-          rsync -avzR --rsync-path "mkdir -p ${{ env.PROJECT_DIR_FROM_ROOT }}/releases && rsync" --exclude '.github' --exclude '.git' --exclude '.docker' --relative ./ -e "ssh -i ~/.ssh/id_rsa -T -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }}" ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:"${{ env.RELEASE_DIR_FROM_ROOT }}"
-
-      # Connexion au serveur distant via ssh et création des liens symboliques
-      - name: Connexion au serveur distant via ssh et création des liens symboliques
-        uses: appleboy/ssh-action@master
+      # Écriture du fichier .htpasswd sur le serveur (optionnel : si le secret HTPASSWD est vide,
+      # la protection par mot de passe est retirée du .htaccess pendant le déploiement)
+      - name: Écriture du fichier .htpasswd sur le serveur
         env:
-          REMOTE_RELEASE_DIR_FROM_HOME: ${{ env.RELEASE_DIR_FROM_HOME }}
-          REMOTE_RELEASE_DIR_FROM_ROOT: ${{ env.RELEASE_DIR_FROM_ROOT }}
-          REMOTE_PROJECT_DIR: ${{ env.PROJECT_DIR }}
-          PROJECT_DIR_FROM_ROOT: ${{ env.PROJECT_DIR_FROM_ROOT }}
-        with:
-          envs: REMOTE_RELEASE_DIR_FROM_HOME, REMOTE_RELEASE_DIR_FROM_ROOT, REMOTE_PROJECT_DIR, PROJECT_DIR_FROM_ROOT
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            set -e
-            trap 'if [ -d "$PROJECT_DIR_FROM_ROOT/current" ]; then cd $PROJECT_DIR_FROM_ROOT/current && php artisan up; fi' ERR
-            if [ -d "$PROJECT_DIR_FROM_ROOT/current" ]; then
-              echo "Mise en maintenance du site"
-              cd $PROJECT_DIR_FROM_ROOT/current && php artisan down
-            fi
-            if [ ! -d "$PROJECT_DIR_FROM_ROOT/storage" ]; then
-              echo "Creation du dossier storage partagé"
-              cp -R "$REMOTE_RELEASE_DIR_FROM_ROOT/storage" "$PROJECT_DIR_FROM_ROOT/storage"
-            fi
-            rm -rf $REMOTE_RELEASE_DIR_FROM_ROOT/storage
-            echo "creation des liens symboliques"
-            ln -s $PROJECT_DIR_FROM_ROOT/storage $REMOTE_RELEASE_DIR_FROM_ROOT/storage
-            ln -s $PROJECT_DIR_FROM_ROOT/storage/app/public $REMOTE_RELEASE_DIR_FROM_ROOT/public/storage
-            ln -s $PROJECT_DIR_FROM_ROOT/catalogue $REMOTE_RELEASE_DIR_FROM_ROOT/public
-            echo "Execution des migrations"
-            cd $REMOTE_RELEASE_DIR_FROM_ROOT && php artisan migrate --force
-            ln -sfn $REMOTE_RELEASE_DIR_FROM_ROOT $PROJECT_DIR_FROM_ROOT/current
-            echo "suppression des vieilles releases"
-            ls -dt $PROJECT_DIR_FROM_ROOT/releases/* | tail -n +${{env.KEEP_RELEASE}} | xargs rm -rf
-            if [ -d "$PROJECT_DIR_FROM_ROOT/current" ]; then
-              echo "Le site est de nouveau accessible"
-              cd $PROJECT_DIR_FROM_ROOT/current && php artisan up
-            fi
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+          HTPASSWD_CONTENT: ${{ secrets.HTPASSWD }}
+        run: |
+          if [ -n "$HTPASSWD_CONTENT" ]; then
+            echo "$HTPASSWD_CONTENT" | sshpass -e ssh -T -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+              "mkdir -p ${{ env.PROJECT_DIR }} && cat > ${{ env.PROJECT_DIR }}/.htpasswd && chmod 644 ${{ env.PROJECT_DIR }}/.htpasswd"
+          fi
+
+      # Copie du code source sur le serveur distant via rsync
+      - name: Copie du code source sur le serveur distant via rsync
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+        run: |
+          rsync -az --delete \
+            --rsync-path "mkdir -p ${{ env.PROJECT_DIR }}/releases && rsync" \
+            --exclude '.git' --exclude '.github' --exclude '.docker' --exclude '.ai' --exclude '.idea' --exclude '.claude' \
+            --exclude 'node_modules' --exclude 'tests' --exclude 'public/storage' --exclude 'public/hot' \
+            -e "sshpass -e ssh -T -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }}" \
+            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.PROJECT_DIR }}/releases/${{ env.RELEASE_DATE }}/
+
+      # Activation de la release : stockage partagé, liens symboliques, migrations, cache, bascule de "current"
+      - name: Activation de la release sur le serveur
+        env:
+          SSHPASS: ${{ secrets.SSH_PASSWORD }}
+          HTPASSWD_CONTENT: ${{ secrets.HTPASSWD }}
+        run: |
+          HAS_HTPASSWD=$([ -n "$HTPASSWD_CONTENT" ] && echo 1 || echo 0)
+          sshpass -e ssh -T -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' <<EOF
+          set -e
+          PHP="${{ env.PHP_BIN }}"
+          PROJECT="\$HOME/${{ env.PROJECT_DIR }}"
+          RELEASE="\$PROJECT/releases/${{ env.RELEASE_DATE }}"
+
+          trap 'if [ -d "\$PROJECT/current" ]; then cd "\$PROJECT/current" && \$PHP artisan up; fi' ERR
+
+          # Version PHP du site web (lue par OVH à la racine de l'hébergement)
+          cat > "\$HOME/.ovhconfig" <<OVHCONFIG
+          app.engine=php
+          app.engine.version=8.4
+          http.firewall=none
+          environment=production
+          container.image=stable64
+          OVHCONFIG
+
+          if [ -d "\$PROJECT/current" ]; then
+            echo "Mise en maintenance du site"
+            cd "\$PROJECT/current" && \$PHP artisan down || true
+          fi
+
+          if [ ! -d "\$PROJECT/storage" ]; then
+            echo "Création du dossier storage partagé"
+            cp -R "\$RELEASE/storage" "\$PROJECT/storage"
+          fi
+          mkdir -p "\$PROJECT/catalogue"
+
+          echo "Création des liens symboliques"
+          rm -rf "\$RELEASE/storage"
+          ln -s "\$PROJECT/storage" "\$RELEASE/storage"
+          ln -sfn "\$PROJECT/storage/app/public" "\$RELEASE/public/storage"
+          ln -sfn "\$PROJECT/catalogue" "\$RELEASE/public/catalogue"
+
+          # Chemin absolu du .htpasswd (dépend du home OVH, ex: /homez.123/login)
+          if [ "$HAS_HTPASSWD" = "1" ]; then
+            sed -i "s#^AuthUserFile .*#AuthUserFile \$PROJECT/.htpasswd#" "\$RELEASE/public/.htaccess"
+          else
+            sed -i '/^AuthType\|^AuthName\|^AuthUserFile\|^Require valid-user/d' "\$RELEASE/public/.htaccess"
+          fi
+
+          cd "\$RELEASE"
+          echo "Exécution des migrations"
+          \$PHP artisan migrate --force
+          echo "Mise en cache de la configuration, des routes et des vues"
+          \$PHP artisan optimize
+
+          ln -sfn "\$RELEASE" "\$PROJECT/current"
+
+          echo "Suppression des vieilles releases"
+          ls -dt "\$PROJECT"/releases/* | tail -n +\$(( ${{ env.KEEP_RELEASE }} + 1 )) | xargs rm -rf
+
+          echo "Le site est de nouveau accessible"
+          cd "\$PROJECT/current" && \$PHP artisan up
+          EOF
