@@ -87,7 +87,7 @@ class ShopifyStorefrontService
     }
 
     /**
-     * @return array{id: string, title: string, category: string, description: string, images: array<int, array{url: string, alt: string}>, options: array<int, array{name: string, values: array<int, string>}>, variants: array<int, array{id: string, availableForSale: bool, price: string, currency: string, selectedOptions: array<string, string>}>}|null
+     * @return array{id: string, title: string, category: string, description: string, images: array<int, array{url: string, alt: string}>, options: array<int, array{name: string, values: array<int, string>}>, kitContents: array<int, string>, woods: array<int, string>, assemblyTime: string|null, variants: array<int, array{id: string, availableForSale: bool, price: string, currency: string, image: string|null, selectedOptions: array<string, string>}>}|null
      *
      * @throws ConnectionException
      */
@@ -114,6 +114,18 @@ class ShopifyStorefrontService
                         name
                         values
                     }
+                    kitContents: metafield(namespace: "custom", key: "contenu_kit") {
+                        type
+                        value
+                    }
+                    woods: metafield(namespace: "custom", key: "bois_utilises") {
+                        type
+                        value
+                    }
+                    assemblyTime: metafield(namespace: "custom", key: "temps_assemblage") {
+                        type
+                        value
+                    }
                     variants(first: 100) {
                         edges {
                             node {
@@ -126,6 +138,9 @@ class ShopifyStorefrontService
                                 selectedOptions {
                                     name
                                     value
+                                }
+                                image {
+                                    url
                                 }
                             }
                         }
@@ -167,12 +182,16 @@ class ShopifyStorefrontService
                     ])
                     ->values()
                     ->all(),
+                'kitContents' => $this->metafieldList($node['kitContents'] ?? null),
+                'woods' => $this->metafieldList($node['woods'] ?? null),
+                'assemblyTime' => $this->metafieldText($node['assemblyTime'] ?? null),
                 'variants' => collect($node['variants']['edges'] ?? [])
                     ->map(fn (array $edge) => [
                         'id' => $edge['node']['id'],
                         'availableForSale' => $edge['node']['availableForSale'] ?? true,
                         'price' => $edge['node']['price']['amount'],
                         'currency' => $edge['node']['price']['currencyCode'],
+                        'image' => $edge['node']['image']['url'] ?? null,
                         'selectedOptions' => collect($edge['node']['selectedOptions'] ?? [])
                             ->mapWithKeys(fn (array $option) => [$option['name'] => $option['value']])
                             ->all(),
@@ -224,5 +243,38 @@ class ShopifyStorefrontService
         }
 
         return $values;
+    }
+
+    /**
+     * Read a text metafield, splitting list types and multi-line values into separate entries.
+     *
+     * @param  array{type: string, value: string}|null  $metafield
+     * @return array<int, string>
+     */
+    private function metafieldList(?array $metafield): array
+    {
+        if (! $metafield || blank($metafield['value'] ?? null)) {
+            return [];
+        }
+
+        $values = str_starts_with($metafield['type'], 'list.')
+            ? (json_decode($metafield['value'], true) ?: [])
+            : preg_split('/\R/', $metafield['value']);
+
+        return collect($values)
+            ->map(fn (mixed $value) => trim((string) $value))
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array{type: string, value: string}|null  $metafield
+     */
+    private function metafieldText(?array $metafield): ?string
+    {
+        $value = trim($metafield['value'] ?? '');
+
+        return $value === '' ? null : $value;
     }
 }

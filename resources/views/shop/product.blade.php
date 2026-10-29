@@ -108,44 +108,64 @@
                     Aucun outil requis · Plan de montage inclus
                 </p>
 
-                <div class="border-t border-border mt-8"></div>
+                @if ($product['kitContents'])
+                    <div class="border-t border-border mt-8"></div>
 
-                <div class="mt-8">
-                    <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="text-foreground shrink-0">
-                            <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73Z"/>
-                            <path d="m3.3 7 8.7 5 8.7-5"/>
-                            <path d="M12 22V12"/>
-                        </svg>
-                        <p class="font-serif text-lg text-foreground">Ce que vous recevez</p>
+                    <div class="mt-8">
+                        <div class="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="text-foreground shrink-0">
+                                <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4a2 2 0 0 0 1-1.73Z"/>
+                                <path d="m3.3 7 8.7 5 8.7-5"/>
+                                <path d="M12 22V12"/>
+                            </svg>
+                            <p class="font-serif text-lg text-foreground">Ce que vous recevez</p>
+                        </div>
+                        <ul class="mt-4 space-y-2">
+                            @foreach ($product['kitContents'] as $kitContent)
+                                <li class="font-sans-soft text-sm text-foreground/80">— {{ $kitContent }}</li>
+                            @endforeach
+                        </ul>
                     </div>
-                    <ul class="mt-4 space-y-2">
-                        <li class="font-sans-soft text-sm text-foreground/80">— Cadre en chêne massif</li>
-                        <li class="font-sans-soft text-sm text-foreground/80">— Environ 1100 pièces de bois triées par teinte</li>
-                        <li class="font-sans-soft text-sm text-foreground/80">— Pince en bois</li>
-                        <li class="font-sans-soft text-sm text-foreground/80">— Plan de montage illustré</li>
-                        <li class="font-sans-soft text-sm text-foreground/80">— Notice d'assemblage</li>
-                    </ul>
-                </div>
+                @endif
 
-                <div class="border-t border-border mt-8"></div>
+                @if ($product['woods'])
+                    <div class="border-t border-border mt-8"></div>
 
-                <div class="mt-8">
-                    <div class="flex items-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="text-foreground shrink-0">
-                            <path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"/>
-                            <path d="M7 16v6"/>
-                            <path d="M13 19v3"/>
-                            <path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5"/>
-                        </svg>
-                        <p class="font-serif text-lg text-foreground">Bois utilisés</p>
+                    <div class="mt-8">
+                        <div class="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="text-foreground shrink-0">
+                                <path d="M10 10v.2A3 3 0 0 1 8.9 16H5a3 3 0 0 1-1-5.8V10a3 3 0 0 1 6 0Z"/>
+                                <path d="M7 16v6"/>
+                                <path d="M13 19v3"/>
+                                <path d="M12 19h8.3a1 1 0 0 0 .7-1.7L18 14h.3a1 1 0 0 0 .7-1.7L16 9h.2a1 1 0 0 0 .8-1.7L13 3l-1.4 1.5"/>
+                            </svg>
+                            <p class="font-serif text-lg text-foreground">Bois utilisés</p>
+                        </div>
+                        <ul class="mt-4 space-y-2">
+                            @foreach ($product['woods'] as $wood)
+                                <li class="flex items-center gap-2 font-sans-soft text-sm text-foreground/80">
+                                    <span class="size-1.5 rounded-full bg-primary shrink-0" aria-hidden="true"></span>
+                                    {{ $wood }}
+                                </li>
+                            @endforeach
+                        </ul>
                     </div>
-                    <p class="font-sans-soft text-sm text-foreground/80 mt-3">Chêne français, hêtre, noyer et frêne teinté vert.</p>
-                </div>
+                @endif
 
-                <div class="border-t border-border mt-8"></div>
+                @if ($product['assemblyTime'])
+                    <div class="border-t border-border mt-8"></div>
 
-                <p class="font-sans-soft text-sm text-foreground/80 mt-8">Comptez une à trois soirées pour l'assemblage. Vous n'avez besoin que de la pince fournie et du plan de montage — aucun outil, aucune compétence particulière.</p>
+                    <div class="mt-8">
+                        <div class="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="text-foreground shrink-0">
+                                <circle cx="12" cy="12" r="10"/>
+                                <path d="M12 6v6l4 2"/>
+                            </svg>
+                            <p class="font-serif text-lg text-foreground">Temps d'assemblage estimé :</p>
+                            <p class="font-sans-soft text-sm text-foreground/80">{{ $product['assemblyTime'] }}</p>
+                        </div>
+                    </div>
+                @endif
             </div>
         </div>
     </section>

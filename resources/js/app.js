@@ -128,7 +128,7 @@ Alpine.data('productPage', (product) => ({
         this.product.options.forEach((option) => {
             this.selected[option.name] = option.values[0];
         });
-        this.mainImage = this.product.images[0]?.url ?? null;
+        this.mainImage = this.currentVariant?.image ?? this.product.images[0]?.url ?? null;
     },
 
     get visibleOptions() {
@@ -151,6 +151,10 @@ Alpine.data('productPage', (product) => ({
 
     selectOption(name, value) {
         this.selected[name] = value;
+
+        if (this.currentVariant.image) {
+            this.mainImage = this.currentVariant.image;
+        }
     },
 
     selectImage(url) {
