@@ -107,6 +107,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Fragment Builder
+    |--------------------------------------------------------------------------
+    |
+    | When disabled, the custom Fragment builder is replaced by a page
+    | announcing that the feature is coming soon.
+    |
+    */
+
+    'builder_enabled' => (bool) env('BUILDER_ENABLED', false),
+
+    /*
+    |--------------------------------------------------------------------------
     | Maintenance Mode Driver
     |--------------------------------------------------------------------------
     |

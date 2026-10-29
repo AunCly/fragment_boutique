@@ -101,6 +101,10 @@ class ShopifyController extends Controller
 
     public function custom(): View
     {
+        if (! config('app.builder_enabled')) {
+            return view('shop.custom-coming-soon');
+        }
+
         $woodTextures = WoodTexture::active()->ordered()->get()->map->toBuilderEntry()->values();
         $formats = Format::active()->ordered()->get()->map->toBuilderEntry()->values();
 

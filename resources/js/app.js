@@ -187,6 +187,12 @@ Alpine.data('collectionFilters', (products, groups) => ({
         this.selected[name] = this.selected[name] === value ? null : value;
     },
 
+    reset() {
+        this.groups.forEach((group) => {
+            this.selected[group.name] = null;
+        });
+    },
+
     get filtered() {
         return this.products.filter((product) => (
             Object.entries(this.selected).every(([name, value]) => (

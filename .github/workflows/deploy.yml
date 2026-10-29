@@ -100,18 +100,6 @@ jobs:
       - name: Nettoyage des caches
         run: php artisan optimize:clear
 
-      # Écriture du fichier .htpasswd sur le serveur (optionnel : si le secret HTPASSWD est vide,
-      # la protection par mot de passe est retirée du .htaccess pendant le déploiement)
-      - name: Écriture du fichier .htpasswd sur le serveur
-        env:
-          SSHPASS: ${{ secrets.SSH_PASSWORD }}
-          HTPASSWD_CONTENT: ${{ secrets.HTPASSWD }}
-        run: |
-          if [ -n "$HTPASSWD_CONTENT" ]; then
-            echo "$HTPASSWD_CONTENT" | sshpass -e ssh -T -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-              "mkdir -p ${{ env.PROJECT_DIR }} && cat > ${{ env.PROJECT_DIR }}/.htpasswd && chmod 644 ${{ env.PROJECT_DIR }}/.htpasswd"
-          fi
-
       # Copie du code source sur le serveur distant via rsync
       - name: Copie du code source sur le serveur distant via rsync
         env:
@@ -128,9 +116,7 @@ jobs:
       - name: Activation de la release sur le serveur
         env:
           SSHPASS: ${{ secrets.SSH_PASSWORD }}
-          HTPASSWD_CONTENT: ${{ secrets.HTPASSWD }}
         run: |
-          HAS_HTPASSWD=$([ -n "$HTPASSWD_CONTENT" ] && echo 1 || echo 0)
           sshpass -e ssh -T -o StrictHostKeyChecking=no -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'bash -s' <<EOF
           set -e
           PHP="${{ env.PHP_BIN }}"
@@ -164,13 +150,6 @@ jobs:
           ln -s "\$PROJECT/storage" "\$RELEASE/storage"
           ln -sfn "\$PROJECT/storage/app/public" "\$RELEASE/public/storage"
           ln -sfn "\$PROJECT/catalogue" "\$RELEASE/public/catalogue"
-
-          # Chemin absolu du .htpasswd (dépend du home OVH, ex: /homez.123/login)
-          if [ "$HAS_HTPASSWD" = "1" ]; then
-            sed -i "s#^AuthUserFile .*#AuthUserFile \$PROJECT/.htpasswd#" "\$RELEASE/public/.htaccess"
-          else
-            sed -i '/^AuthType\|^AuthName\|^AuthUserFile\|^Require valid-user/d' "\$RELEASE/public/.htaccess"
-          fi
 
           cd "\$RELEASE"
           echo "Exécution des migrations"

@@ -42,3 +42,7 @@
     background-color: var(--primary);
     color: var(--background);
 }
+
+[x-cloak] {
+    display: none !important;
+}

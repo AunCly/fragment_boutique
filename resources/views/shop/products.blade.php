@@ -63,5 +63,18 @@
                 </a>
             </template>
         </div>
+
+        <div
+            x-show="products.length && !filtered.length"
+            x-cloak
+            class="max-w-md mx-auto border border-border rounded-lg px-6 py-10 text-center"
+        >
+            <p class="font-serif text-xl text-foreground">Aucun produit ne correspond à ces filtres.</p>
+            <button
+                type="button"
+                @click="reset()"
+                class="inline-flex items-center gap-2 mt-6 px-6 py-3 border border-border font-sans-soft text-xs uppercase tracking-wide text-foreground hover:border-primary transition"
+            >Réinitialiser les filtres</button>
+        </div>
     </section>
 @endsection
