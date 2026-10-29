@@ -36,8 +36,9 @@
                             <button
                                 type="button"
                                 @click="toggle(group.name, value)"
+                                :disabled="selected[group.name] !== value && !isAvailable(group.name, value)"
                                 :class="selected[group.name] === value ? 'bg-primary text-white border-primary' : 'border-border text-foreground hover:border-primary'"
-                                class="px-5 py-2.5 border font-sans-soft text-xs uppercase tracking-wide transition"
+                                class="px-5 py-2.5 border font-sans-soft text-xs uppercase tracking-wide transition disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border"
                                 x-text="value"
                             ></button>
                         </template>

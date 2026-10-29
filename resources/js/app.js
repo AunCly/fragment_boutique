@@ -197,12 +197,20 @@ Alpine.data('collectionFilters', (products, groups) => ({
         });
     },
 
-    get filtered() {
-        return this.products.filter((product) => (
-            Object.entries(this.selected).every(([name, value]) => (
-                !value || product.tags[name] === value
-            ))
+    matches(product, ignoredName = null) {
+        return Object.entries(this.selected).every(([name, value]) => (
+            name === ignoredName || !value || product.tags[name] === value
         ));
+    },
+
+    isAvailable(name, value) {
+        return this.products.some((product) => (
+            product.tags[name] === value && this.matches(product, name)
+        ));
+    },
+
+    get filtered() {
+        return this.products.filter((product) => this.matches(product));
     },
 }));
 
