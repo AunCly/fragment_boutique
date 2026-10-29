@@ -27,6 +27,9 @@
                     <a href="{{ route('admin.formats.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.formats.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
                         Formats
                     </a>
+                    <a href="{{ route('admin.gallery-images.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.gallery-images.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
+                        Galerie
+                    </a>
                 </nav>
             </div>
             <form action="{{ route('admin.logout') }}" method="POST">

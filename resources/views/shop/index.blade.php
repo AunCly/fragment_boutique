@@ -277,7 +277,7 @@
 
             <div class="md:text-right">
                 <a
-                    href="#"
+                    href="{{ route('shop.gallery') }}"
                     class="relative inline-flex items-center gap-1 font-sans-soft text-sm text-foreground after:content-[''] after:absolute after:left-0 after:-bottom-1 after:h-px after:w-full after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:after:scale-x-100"
                 >
                     Voir la galerie
@@ -289,37 +289,22 @@
             </div>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-12">
-            <div class="group">
-                <div class="w-full aspect-square rounded-lg overflow-hidden">
-                    <img
-                        src="{{ Vite::asset('resources/images/gallery/gallery-1-Cuy0LPkR.jpg') }}"
-                        alt="Un Fragment assemblé, installé dans un intérieur"
-                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    >
-                </div>
+        @if ($galleryImages->isNotEmpty())
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-12">
+                @foreach ($galleryImages as $image)
+                    <div class="group">
+                        <div class="w-full aspect-square rounded-lg overflow-hidden">
+                            <img
+                                src="{{ $image->url }}"
+                                alt="{{ $image->alt_text }}"
+                                loading="lazy"
+                                class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                            >
+                        </div>
+                    </div>
+                @endforeach
             </div>
-
-            <div class="group">
-                <div class="w-full aspect-square rounded-lg overflow-hidden">
-                    <img
-                        src="{{ Vite::asset('resources/images/gallery/gallery-2-Dc8Qmn3J.jpg') }}"
-                        alt="Un Fragment assemblé, installé dans un intérieur"
-                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    >
-                </div>
-            </div>
-
-            <div class="group">
-                <div class="w-full aspect-square rounded-lg overflow-hidden">
-                    <img
-                        src="{{ Vite::asset('resources/images/gallery/gallery-3-CCzQGLN0.jpg') }}"
-                        alt="Un Fragment assemblé, installé dans un intérieur"
-                        class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    >
-                </div>
-            </div>
-        </div>
+        @endif
     </section>
 
     <div class="max-w-6xl mx-auto px-4">

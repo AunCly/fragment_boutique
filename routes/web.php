@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FaqController as AdminFaqController;
 use App\Http\Controllers\Admin\FormatController as AdminFormatController;
+use App\Http\Controllers\Admin\GalleryImageController as AdminGalleryImageController;
 use App\Http\Controllers\Admin\WoodTextureController as AdminWoodTextureController;
 use App\Http\Controllers\ShopifyController;
 use Illuminate\Support\Facades\Route;
@@ -48,5 +49,6 @@ Route::prefix('fragment-admin')->name('admin.')->group(function () {
         Route::resource('faqs', AdminFaqController::class)->except(['show']);
         Route::resource('wood-textures', AdminWoodTextureController::class)->except(['show']);
         Route::resource('formats', AdminFormatController::class)->except(['show']);
+        Route::resource('gallery-images', AdminGalleryImageController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 });

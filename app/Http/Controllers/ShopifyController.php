@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Faq;
 use App\Models\Format;
+use App\Models\GalleryImage;
 use App\Models\WoodTexture;
 use App\Services\ShopifyAdminService;
 use App\Services\ShopifyStorefrontService;
@@ -21,8 +22,9 @@ class ShopifyController extends Controller
     public function index(): View
     {
         $fragments = $this->storefront->fetchProducts(4);
+        $galleryImages = GalleryImage::ordered()->limit(3)->get();
 
-        return view('shop.index', compact('fragments'));
+        return view('shop.index', compact('fragments', 'galleryImages'));
     }
 
     public function products(): View
@@ -87,14 +89,7 @@ class ShopifyController extends Controller
 
     public function gallery(): View
     {
-        $images = [
-            ['path' => 'resources/images/gallery/gallery-1-Cuy0LPkR.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
-            ['path' => 'resources/images/gallery/product-owl-D5LQ9sc5.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
-            ['path' => 'resources/images/gallery/gallery-2-Dc8Qmn3J.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
-            ['path' => 'resources/images/gallery/product-mountains-C2h_MNwy.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
-            ['path' => 'resources/images/gallery/gallery-3-CCzQGLN0.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
-            ['path' => 'resources/images/gallery/product-geo2-BEs2mhOM.jpg', 'alt' => 'Un Fragment assemblé, installé dans un intérieur'],
-        ];
+        $images = GalleryImage::ordered()->get();
 
         return view('shop.gallery', compact('images'));
     }

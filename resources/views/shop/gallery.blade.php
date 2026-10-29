@@ -24,8 +24,9 @@
             @foreach($images as $image)
                 <div class="mb-6 break-inside-avoid">
                     <img
-                        src="{{ Vite::asset($image['path']) }}"
-                        alt="{{ $image['alt'] }}"
+                        src="{{ $image->url }}"
+                        alt="{{ $image->alt_text }}"
+                        loading="lazy"
                         class="w-full h-auto rounded-lg"
                     >
                 </div>

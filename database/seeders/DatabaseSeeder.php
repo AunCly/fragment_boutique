@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             WoodTextureSeeder::class,
             FormatSeeder::class,
+            GalleryImageSeeder::class,
         ]);
     }
 }
