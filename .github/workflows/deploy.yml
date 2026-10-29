@@ -96,6 +96,12 @@ jobs:
           echo 'SHOPIFY_CLIENT_SECRET="${{ secrets.SHOPIFY_CLIENT_SECRET }}"' >> .env
           echo 'SHOPIFY_STOREFRONT_TOKEN="${{ secrets.SHOPIFY_STOREFRONT_TOKEN }}"' >> .env
 
+          echo 'TURNSTILE_SITE_KEY="${{ secrets.TURNSTILE_SITE_KEY }}"' >> .env
+          echo 'TURNSTILE_SECRET_KEY="${{ secrets.TURNSTILE_SECRET_KEY }}"' >> .env
+
+          echo 'MAIL_USERNAME="${{ secrets.MAIL_USERNAME }}"' >> .env
+          echo 'MAIL_PASSWORD="${{ secrets.MAIL_PASSWORD }}"' >> .env
+
       # Suppression des caches
       - name: Nettoyage des caches
         run: php artisan optimize:clear

@@ -42,4 +42,9 @@ return [
         'client_secret' => env('SHOPIFY_CLIENT_SECRET'),
     ],
 
+    'turnstile' => [
+        'site_key' => env('TURNSTILE_SITE_KEY'),
+        'secret_key' => env('TURNSTILE_SECRET_KEY'),
+    ],
+
 ];

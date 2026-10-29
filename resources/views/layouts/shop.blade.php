@@ -74,19 +74,19 @@
                     <div>
                         <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground">Boutique</p>
                         <ul class="mt-4 space-y-1.5">
-                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Collection</a></li>
-                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Comment ça marche</a></li>
-                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">L'atelier</a></li>
-                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Galerie</a></li>
+                            <li><a href="{{ route('shop.products') }}" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Collection</a></li>
+                            <li><a href="{{ route('shop.how-it-works') }}" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Comment ça marche</a></li>
+                            <li><a href="{{ route('shop.workshop') }}" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">L'atelier</a></li>
+                            <li><a href="{{ route('shop.gallery') }}" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Galerie</a></li>
                         </ul>
                     </div>
 
                     <div>
                         <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground">Maison</p>
                         <ul class="mt-4 space-y-1.5">
-                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Contact</a></li>
-                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Livraison</a></li>
-                            <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Retours</a></li>
+                            <li><a href="{{ route('shop.contact') }}" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Contact</a></li>
+                            <li><a href="{{ route('shop.shipping-returns') }}" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Livraison</a></li>
+                            <li><a href="{{ route('shop.shipping-returns') }}" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Retours</a></li>
                             <li><a href="#" class="font-sans-soft text-sm text-foreground/80 hover:text-foreground transition">Instagram</a></li>
                         </ul>
                     </div>
@@ -97,9 +97,9 @@
                 <p class="font-sans-soft text-xs text-muted-foreground">© {{ date('Y') }} Fragment — Fabriqué en France</p>
 
                 <div class="flex items-center gap-2">
-                    <a href="#" class="font-sans-soft text-xs text-muted-foreground hover:text-foreground transition">Mentions légales</a>
+                    <a href="{{ route('shop.legal-notice') }}" class="font-sans-soft text-xs text-muted-foreground hover:text-foreground transition">Mentions légales</a>
                     <span class="font-sans-soft text-xs text-muted-foreground">·</span>
-                    <a href="#" class="font-sans-soft text-xs text-muted-foreground hover:text-foreground transition">CGV</a>
+                    <a href="{{ route('shop.terms') }}" class="font-sans-soft text-xs text-muted-foreground hover:text-foreground transition">CGV</a>
                     <span class="font-sans-soft text-xs text-muted-foreground">·</span>
                     <a href="#" class="font-sans-soft text-xs text-muted-foreground hover:text-foreground transition">Confidentialité</a>
                 </div>

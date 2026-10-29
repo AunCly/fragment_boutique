@@ -111,6 +111,21 @@ class ShopifyController extends Controller
         return view('shop.thank-you');
     }
 
+    public function terms(): View
+    {
+        return view('shop.legal.terms');
+    }
+
+    public function legalNotice(): View
+    {
+        return view('shop.legal.legal-notice');
+    }
+
+    public function shippingReturns(): View
+    {
+        return view('shop.legal.shipping-returns');
+    }
+
     public function checkout(Request $request): JsonResponse
     {
         $validated = $request->validate([

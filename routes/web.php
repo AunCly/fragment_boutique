@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\FaqController as AdminFaqController;
 use App\Http\Controllers\Admin\FormatController as AdminFormatController;
 use App\Http\Controllers\Admin\GalleryImageController as AdminGalleryImageController;
 use App\Http\Controllers\Admin\WoodTextureController as AdminWoodTextureController;
+use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ShopifyController;
 use Illuminate\Support\Facades\Route;
 
@@ -17,6 +18,11 @@ Route::get('/comment-ca-marche', [ShopifyController::class, 'howItWorks'])->name
 Route::get('/atelier', [ShopifyController::class, 'workshop'])->name('shop.workshop');
 Route::get('/galerie', [ShopifyController::class, 'gallery'])->name('shop.gallery');
 Route::get('/custom', [ShopifyController::class, 'custom'])->name('shop.custom');
+Route::get('/contact', [ContactController::class, 'show'])->name('shop.contact');
+Route::post('/contact', [ContactController::class, 'send'])->name('shop.contact.send')->middleware('throttle:5,1');
+Route::get('/cgv', [ShopifyController::class, 'terms'])->name('shop.terms');
+Route::get('/mentions-legales', [ShopifyController::class, 'legalNotice'])->name('shop.legal-notice');
+Route::get('/livraison-et-retours', [ShopifyController::class, 'shippingReturns'])->name('shop.shipping-returns');
 Route::get('/merci', [ShopifyController::class, 'thankYou'])->name('shop.thank-you');
 Route::post('/checkout', [ShopifyController::class, 'checkout'])->name('shop.checkout');
 
