@@ -16,6 +16,7 @@ Route::get('/comment-ca-marche', [ShopifyController::class, 'howItWorks'])->name
 Route::get('/atelier', [ShopifyController::class, 'workshop'])->name('shop.workshop');
 Route::get('/galerie', [ShopifyController::class, 'gallery'])->name('shop.gallery');
 Route::get('/custom', [ShopifyController::class, 'custom'])->name('shop.custom');
+Route::get('/merci', [ShopifyController::class, 'thankYou'])->name('shop.thank-you');
 Route::post('/checkout', [ShopifyController::class, 'checkout'])->name('shop.checkout');
 
 Route::prefix('account')->name('account.')->group(function () {

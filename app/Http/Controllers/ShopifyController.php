@@ -107,6 +107,11 @@ class ShopifyController extends Controller
         return view('shop.custom', compact('woodTextures', 'formats'));
     }
 
+    public function thankYou(): View
+    {
+        return view('shop.thank-you');
+    }
+
     public function checkout(Request $request): JsonResponse
     {
         $validated = $request->validate([

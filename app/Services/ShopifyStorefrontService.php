@@ -87,7 +87,7 @@ class ShopifyStorefrontService
     }
 
     /**
-     * @return array{id: string, title: string, category: string, description: string, images: array<int, array{url: string, alt: string}>, options: array<int, array{name: string, values: array<int, string>}>, variants: array<int, array{id: string, price: string, currency: string, selectedOptions: array<string, string>}>}|null
+     * @return array{id: string, title: string, category: string, description: string, images: array<int, array{url: string, alt: string}>, options: array<int, array{name: string, values: array<int, string>}>, variants: array<int, array{id: string, availableForSale: bool, price: string, currency: string, selectedOptions: array<string, string>}>}|null
      *
      * @throws ConnectionException
      */
@@ -118,6 +118,7 @@ class ShopifyStorefrontService
                         edges {
                             node {
                                 id
+                                availableForSale
                                 price {
                                     amount
                                     currencyCode
@@ -169,6 +170,7 @@ class ShopifyStorefrontService
                 'variants' => collect($node['variants']['edges'] ?? [])
                     ->map(fn (array $edge) => [
                         'id' => $edge['node']['id'],
+                        'availableForSale' => $edge['node']['availableForSale'] ?? true,
                         'price' => $edge['node']['price']['amount'],
                         'currency' => $edge['node']['price']['currencyCode'],
                         'selectedOptions' => collect($edge['node']['selectedOptions'] ?? [])

@@ -93,10 +93,12 @@
 
                 <button
                     type="button"
-                    @click="addVariant({ variantId: currentVariant.id, title: product.title, price: parseFloat(currentVariant.price), currency: currentVariant.currency, image: mainImage, options: { ...selected } })"
-                    class="w-full inline-flex items-center justify-center gap-2 mt-10 px-8 py-4 bg-primary text-background font-sans-soft text-sm uppercase hover:opacity-90 transition"
+                    :disabled="!currentVariant.availableForSale"
+                    @click="currentVariant.availableForSale && addVariant({ variantId: currentVariant.id, title: product.title, price: parseFloat(currentVariant.price), currency: currentVariant.currency, image: mainImage, options: { ...selected } })"
+                    :class="currentVariant.availableForSale ? 'bg-primary text-background hover:opacity-90' : 'bg-muted text-muted-foreground cursor-not-allowed'"
+                    class="w-full inline-flex items-center justify-center gap-2 mt-10 px-8 py-4 font-sans-soft text-sm uppercase transition"
                 >
-                    <span x-text="'Ajouter au panier — ' + currentPriceFormatted"></span>
+                    <span x-text="currentVariant.availableForSale ? 'Ajouter au panier — ' + currentPriceFormatted : 'Rupture de stock'"></span>
                 </button>
 
                 <p class="flex items-center justify-center gap-2 mt-4 font-sans-soft text-xs uppercase tracking-wide text-muted-foreground">
