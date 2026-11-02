@@ -5,7 +5,9 @@ use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FaqController as AdminFaqController;
 use App\Http\Controllers\Admin\FormatController as AdminFormatController;
+use App\Http\Controllers\Admin\FragmentToolController as AdminFragmentToolController;
 use App\Http\Controllers\Admin\GalleryImageController as AdminGalleryImageController;
+use App\Http\Controllers\Admin\PaletteController as AdminPaletteController;
 use App\Http\Controllers\Admin\WoodTextureController as AdminWoodTextureController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\ShopifyController;
@@ -31,6 +33,8 @@ Route::prefix('account')->name('account.')->group(function () {
     Route::post('/login', [AccountController::class, 'login']);
     Route::get('/register', [AccountController::class, 'showRegister'])->name('register');
     Route::post('/register', [AccountController::class, 'register']);
+    Route::get('/activate', [AccountController::class, 'showActivate'])->name('activate');
+    Route::post('/activate', [AccountController::class, 'activate'])->middleware('throttle:10,1');
     Route::get('/password/reset', [AccountController::class, 'showForgotPassword'])->name('password.reset');
     Route::post('/password/reset', [AccountController::class, 'sendPasswordReset']);
 
@@ -55,6 +59,18 @@ Route::prefix('fragment-admin')->name('admin.')->group(function () {
         Route::resource('faqs', AdminFaqController::class)->except(['show']);
         Route::resource('wood-textures', AdminWoodTextureController::class)->except(['show']);
         Route::resource('formats', AdminFormatController::class)->except(['show']);
+        Route::resource('palettes', AdminPaletteController::class)->except(['show']);
+
+        Route::prefix('outil')->name('tool.')->controller(AdminFragmentToolController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/convert', 'convert')->name('convert');
+            Route::post('/preview', 'preview')->name('preview');
+            Route::post('/ai/generate', 'generate')->name('ai.generate');
+            Route::post('/ai/refine', 'refine')->name('ai.refine');
+            Route::post('/ai/suggest', 'suggest')->name('ai.suggest');
+            Route::post('/motifs', 'motifs')->name('motifs');
+            Route::post('/render', 'render')->name('render');
+        });
         Route::resource('gallery-images', AdminGalleryImageController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 });

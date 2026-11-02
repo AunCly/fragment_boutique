@@ -27,6 +27,12 @@
                     <a href="{{ route('admin.formats.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.formats.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
                         Formats
                     </a>
+                    <a href="{{ route('admin.tool.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.tool.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
+                        Outil
+                    </a>
+                    <a href="{{ route('admin.palettes.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.palettes.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
+                        Palettes
+                    </a>
                     <a href="{{ route('admin.gallery-images.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.gallery-images.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
                         Galerie
                     </a>
@@ -42,7 +48,7 @@
     </header>
     @endauth
 
-    <main class="max-w-5xl mx-auto px-4 py-10">
+    <main class="@yield('main_class', 'max-w-5xl') mx-auto px-4 py-10">
         @yield('content')
     </main>
 

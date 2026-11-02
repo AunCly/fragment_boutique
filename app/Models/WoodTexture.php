@@ -6,6 +6,7 @@ use Database\Factories\WoodTextureFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Facades\Storage;
 
 class WoodTexture extends Model
@@ -34,6 +35,12 @@ class WoodTexture extends Model
             'tags' => 'array',
             'is_active' => 'boolean',
         ];
+    }
+
+    /** @return BelongsToMany<Palette, $this> */
+    public function palettes(): BelongsToMany
+    {
+        return $this->belongsToMany(Palette::class);
     }
 
     public function scopeActive(Builder $query): void

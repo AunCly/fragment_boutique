@@ -105,6 +105,18 @@
         <label for="is_active" class="font-sans-soft text-sm text-foreground">Visible dans le builder</label>
     </div>
 
+    <div class="flex items-center gap-2">
+        <input
+            type="checkbox"
+            name="is_tool_enabled"
+            id="is_tool_enabled"
+            value="1"
+            class="rounded border-border"
+            {{ old('is_tool_enabled', $format->is_tool_enabled ?? false) ? 'checked' : '' }}
+        >
+        <label for="is_tool_enabled" class="font-sans-soft text-sm text-foreground">Disponible dans l'outil Fragment</label>
+    </div>
+
     <div class="flex items-center gap-3 pt-2">
         <button
             type="submit"

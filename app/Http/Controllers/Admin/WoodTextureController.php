@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Palette;
 use App\Models\WoodTexture;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,7 +22,10 @@ class WoodTextureController extends Controller
 
     public function create(): View
     {
-        return view('admin.builder.wood-textures.form', ['texture' => new WoodTexture]);
+        return view('admin.builder.wood-textures.form', [
+            'texture' => new WoodTexture,
+            'palettes' => Palette::ordered()->get(),
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -33,11 +37,13 @@ class WoodTextureController extends Controller
             'grid_code' => ['nullable', 'string', 'max:4'],
             'sort_order' => ['required', 'integer', 'min:0'],
             'is_active' => ['boolean'],
+            'palette_ids' => ['nullable', 'array'],
+            'palette_ids.*' => ['integer', 'distinct', 'exists:palettes,id'],
         ]);
 
         $path = $request->file('texture')->store('wood_textures', 'public');
 
-        WoodTexture::create([
+        $woodTexture = WoodTexture::create([
             'slug' => $this->uniqueSlug($request->input('name')),
             'name' => $validated['name'],
             'hex' => $validated['hex'],
@@ -48,12 +54,17 @@ class WoodTextureController extends Controller
             'tags' => $request->input('tags', []),
         ]);
 
+        $woodTexture->palettes()->sync($validated['palette_ids'] ?? []);
+
         return redirect()->route('admin.wood-textures.index')->with('success', 'Essence ajoutée.');
     }
 
     public function edit(WoodTexture $woodTexture): View
     {
-        return view('admin.builder.wood-textures.form', ['texture' => $woodTexture]);
+        return view('admin.builder.wood-textures.form', [
+            'texture' => $woodTexture->load('palettes'),
+            'palettes' => Palette::ordered()->get(),
+        ]);
     }
 
     public function update(Request $request, WoodTexture $woodTexture): RedirectResponse
@@ -65,6 +76,8 @@ class WoodTextureController extends Controller
             'grid_code' => ['nullable', 'string', 'max:4'],
             'sort_order' => ['required', 'integer', 'min:0'],
             'is_active' => ['boolean'],
+            'palette_ids' => ['nullable', 'array'],
+            'palette_ids.*' => ['integer', 'distinct', 'exists:palettes,id'],
         ]);
 
         $data = [
@@ -84,6 +97,7 @@ class WoodTextureController extends Controller
         }
 
         $woodTexture->update($data);
+        $woodTexture->palettes()->sync($validated['palette_ids'] ?? []);
 
         return redirect()->route('admin.wood-textures.index')->with('success', 'Essence mise à jour.');
     }

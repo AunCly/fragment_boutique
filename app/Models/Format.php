@@ -19,6 +19,7 @@ class Format extends Model
         'rows',
         'sort_order',
         'is_active',
+        'is_tool_enabled',
     ];
 
     protected function casts(): array
@@ -27,12 +28,18 @@ class Format extends Model
             'cols' => 'integer',
             'rows' => 'integer',
             'is_active' => 'boolean',
+            'is_tool_enabled' => 'boolean',
         ];
     }
 
     public function scopeActive(Builder $query): void
     {
         $query->where('is_active', true);
+    }
+
+    public function scopeForTool(Builder $query): void
+    {
+        $query->where('is_tool_enabled', true);
     }
 
     public function scopeOrdered(Builder $query): void

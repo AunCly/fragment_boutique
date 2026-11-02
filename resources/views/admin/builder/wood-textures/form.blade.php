@@ -143,6 +143,23 @@
         </div>
     </div>
 
+    @if ($palettes->isNotEmpty())
+        @php $selectedPaletteIds = array_map('intval', (array) old('palette_ids', $texture->exists ? $texture->palettes->pluck('id')->all() : [])); @endphp
+
+        <div>
+            <p class="font-sans-soft text-sm text-foreground mb-2">Palettes de l'outil Fragment</p>
+            <div class="flex flex-wrap gap-x-5 gap-y-2">
+                @foreach ($palettes as $palette)
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="palette_ids[]" value="{{ $palette->id }}" class="rounded border-border"
+                            {{ in_array($palette->id, $selectedPaletteIds, true) ? 'checked' : '' }}>
+                        <span class="font-sans-soft text-sm text-foreground">{{ $palette->name }}</span>
+                    </label>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <div class="flex items-center gap-2 pt-1">
         <input type="checkbox" name="is_active" id="is_active" value="1" class="rounded border-border"
             {{ old('is_active', $texture->is_active ?? true) ? 'checked' : '' }}>

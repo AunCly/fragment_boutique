@@ -79,6 +79,42 @@ class AccountController extends Controller
         }
     }
 
+    public function showActivate(Request $request): View|RedirectResponse
+    {
+        if (session('shopify_customer_token')) {
+            return redirect()->route('account.dashboard');
+        }
+
+        $activationUrl = $request->query('url');
+
+        if (! is_string($activationUrl) || ! filter_var($activationUrl, FILTER_VALIDATE_URL)) {
+            return redirect()->route('account.login')
+                ->withErrors(['email' => 'Ce lien d\'activation est invalide ou a expiré.']);
+        }
+
+        return view('account.activate', compact('activationUrl'));
+    }
+
+    public function activate(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'activation_url' => ['required', 'url'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        try {
+            $tokenData = $this->shopify->activateCustomerByUrl($validated['activation_url'], $validated['password']);
+            session([
+                'shopify_customer_token' => $tokenData['token'],
+                'shopify_customer_expires_at' => $tokenData['expiresAt'],
+            ]);
+
+            return redirect()->route('account.dashboard');
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['password' => $e->getMessage()]);
+        }
+    }
+
     public function logout(Request $request): RedirectResponse
     {
         $token = session('shopify_customer_token');

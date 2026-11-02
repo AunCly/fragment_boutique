@@ -42,6 +42,10 @@ return [
         'client_secret' => env('SHOPIFY_CLIENT_SECRET'),
     ],
 
+    'gemini' => [
+        'key' => env('GEMINI_API_KEY', env('FRAGMENT_GEMINI_API_KEY')),
+    ],
+
     'turnstile' => [
         'site_key' => env('TURNSTILE_SITE_KEY'),
         'secret_key' => env('TURNSTILE_SECRET_KEY'),

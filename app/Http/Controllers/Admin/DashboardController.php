@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Faq;
 use App\Models\Format;
+use App\Models\Palette;
 use App\Models\WoodTexture;
 use Illuminate\View\View;
 
@@ -15,7 +16,8 @@ class DashboardController extends Controller
         $faqCount = Faq::count();
         $woodTextureCount = WoodTexture::count();
         $formatCount = Format::count();
+        $paletteCount = Palette::count();
 
-        return view('admin.dashboard', compact('faqCount', 'woodTextureCount', 'formatCount'));
+        return view('admin.dashboard', compact('faqCount', 'woodTextureCount', 'formatCount', 'paletteCount'));
     }
 }

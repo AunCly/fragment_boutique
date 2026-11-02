@@ -31,11 +31,13 @@ class FormatController extends Controller
             'rows' => ['required', 'integer', 'min:1', 'max:500'],
             'sort_order' => ['required', 'integer', 'min:0'],
             'is_active' => ['boolean'],
+            'is_tool_enabled' => ['boolean'],
         ]);
 
         Format::create([
             ...$validated,
             'is_active' => $request->boolean('is_active'),
+            'is_tool_enabled' => $request->boolean('is_tool_enabled'),
         ]);
 
         return redirect()->route('admin.formats.index')->with('success', 'Format ajouté.');
@@ -55,11 +57,13 @@ class FormatController extends Controller
             'rows' => ['required', 'integer', 'min:1', 'max:500'],
             'sort_order' => ['required', 'integer', 'min:0'],
             'is_active' => ['boolean'],
+            'is_tool_enabled' => ['boolean'],
         ]);
 
         $format->update([
             ...$validated,
             'is_active' => $request->boolean('is_active'),
+            'is_tool_enabled' => $request->boolean('is_tool_enabled'),
         ]);
 
         return redirect()->route('admin.formats.index')->with('success', 'Format mis à jour.');

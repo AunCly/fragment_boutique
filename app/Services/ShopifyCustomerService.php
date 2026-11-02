@@ -53,10 +53,47 @@ class ShopifyCustomerService
 
         $errors = $result['data']['customerCreate']['customerUserErrors'] ?? [];
         if ($errors) {
+            if (($errors[0]['code'] ?? '') === 'CUSTOMER_DISABLED') {
+                throw new RuntimeException('Un compte existe déjà pour cette adresse suite à une commande. Nous venons de vous envoyer un email pour l\'activer.');
+            }
+
             throw new RuntimeException($this->translateError($errors[0]));
         }
 
         return $this->createAccessToken($email, $password);
+    }
+
+    /**
+     * Activates a customer created during a guest checkout, using the link from the Shopify invite email.
+     *
+     * @return array{token: string, expiresAt: string}
+     *
+     * @throws RuntimeException
+     */
+    public function activateCustomerByUrl(string $activationUrl, string $password): array
+    {
+        $mutation = <<<'GRAPHQL'
+        mutation customerActivateByUrl($activationUrl: URL!, $password: String!) {
+            customerActivateByUrl(activationUrl: $activationUrl, password: $password) {
+                customerAccessToken { accessToken expiresAt }
+                customerUserErrors { code field message }
+            }
+        }
+        GRAPHQL;
+
+        $result = $this->graphql($mutation, compact('activationUrl', 'password'));
+
+        $errors = $result['data']['customerActivateByUrl']['customerUserErrors'] ?? [];
+        if ($errors) {
+            throw new RuntimeException($this->translateError($errors[0]));
+        }
+
+        $tokenData = $result['data']['customerActivateByUrl']['customerAccessToken'] ?? null;
+        if (! $tokenData) {
+            throw new RuntimeException('Ce lien d\'activation est invalide ou a expiré.');
+        }
+
+        return ['token' => $tokenData['accessToken'], 'expiresAt' => $tokenData['expiresAt']];
     }
 
     /**
@@ -365,6 +402,8 @@ class ShopifyCustomerService
             'TOO_SHORT' => 'Le mot de passe est trop court (8 caractères minimum).',
             'UNIDENTIFIED_CUSTOMER' => 'Identifiants incorrects.',
             'CUSTOMER_DISABLED' => 'Ce compte est désactivé.',
+            'ALREADY_ENABLED' => 'Ce compte est déjà activé. Vous pouvez vous connecter.',
+            'TOKEN_INVALID' => 'Ce lien d\'activation est invalide ou a expiré.',
             default => $error['message'],
         };
     }

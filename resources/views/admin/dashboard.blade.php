@@ -26,5 +26,11 @@
         <p class="font-serif text-2xl text-foreground">{{ $formatCount }}</p>
         <p class="font-sans-soft text-sm text-muted-foreground mt-1">Dimensions disponibles</p>
     </a>
+
+    <a href="{{ route('admin.palettes.index') }}" class="border border-border rounded-2xl bg-card p-6 hover:bg-muted/50 transition block">
+        <p class="font-sans-soft text-xs uppercase tracking-widest text-muted-foreground mb-2">Palettes</p>
+        <p class="font-serif text-2xl text-foreground">{{ $paletteCount }}</p>
+        <p class="font-sans-soft text-sm text-muted-foreground mt-1">Sélections d'essences pour l'outil</p>
+    </a>
 </div>
 @endsection

@@ -47,6 +47,12 @@
                     {{ $format->is_active ? 'Actif' : 'Inactif' }}
                 </span>
 
+                @if ($format->is_tool_enabled)
+                    <span class="font-sans-soft text-xs px-2 py-0.5 rounded-full border shrink-0 text-foreground bg-muted border-border">
+                        Outil
+                    </span>
+                @endif
+
                 <div class="flex items-center gap-3 shrink-0">
                     <a href="{{ route('admin.formats.edit', $format) }}" class="font-sans-soft text-sm text-muted-foreground hover:text-foreground transition">
                         Modifier
