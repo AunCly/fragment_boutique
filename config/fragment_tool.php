@@ -81,6 +81,12 @@ return [
         'max_problems' => 4,
 
         /*
+        | Test mode (no Gemini call, no cost): pause before each simulated answer,
+        | so the progress popup can be seen.
+        */
+        'test_mode_delay_ms' => (int) env('FRAGMENT_AI_TEST_DELAY_MS', 1500),
+
+        /*
         | USD per million tokens. Values to check against Google's pricing page
         | (spec: ≈ 0.08 $ per generated image, a few thousandths per review).
         */

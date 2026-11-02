@@ -70,7 +70,9 @@ Route::prefix('fragment-admin')->name('admin.')->group(function () {
             Route::post('/ai/suggest', 'suggest')->name('ai.suggest');
             Route::post('/motifs', 'motifs')->name('motifs');
             Route::post('/render', 'render')->name('render');
+            Route::post('/render/zip', 'archive')->name('archive');
         });
+        Route::view('/maquette-outil', 'admin.tool.mockup')->name('tool-mockup');
         Route::resource('gallery-images', AdminGalleryImageController::class)->only(['index', 'store', 'update', 'destroy']);
     });
 });

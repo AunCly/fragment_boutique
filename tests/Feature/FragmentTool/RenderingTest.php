@@ -144,7 +144,33 @@ class RenderingTest extends TestCase
         $this->assertSame($first, $renderer->render($grid, $toolPalette));
         $image = imagecreatefromstring($first);
         $this->assertSame([1536, 1536], [imagesx($image), imagesy($image)]);
-        $this->assertNotSame(imagecolorat($image, 10, 10), imagecolorat($image, 50, 10), 'The photo grain is visible.');
+        $this->assertTrue(
+            imagecolorat($image, 10, 10) !== imagecolorat($image, 50, 10) || imagecolorat($image, 10, 10) !== imagecolorat($image, 10, 50),
+            'The photo grain is visible, whatever the piece orientation.',
+        );
+    }
+
+    public function test_wood_pieces_are_turned_by_random_quarter_turns(): void
+    {
+        $palette = $this->createToolPalette();
+        $texture = $palette->woodTextures->first();
+        Storage::disk('public')->put('wood_textures/sycomore.jpg', $this->grainPhoto(vertical: true));
+        $texture->update(['texture_path' => 'wood_textures/sycomore.jpg']);
+        $toolPalette = $this->toolPalette($palette->fresh('woodTextures'));
+        $renderer = new WoodRenderer;
+
+        $image = imagecreatefromstring($renderer->render(Grid::filled(16, 16, $texture->id), $toolPalette));
+        $cell = intdiv(imagesx($image), 16);
+        $orientations = [];
+        for ($row = 0; $row < 16; $row++) {
+            for ($col = 0; $col < 16; $col++) {
+                $piece = imagecrop($image, ['x' => $col * $cell, 'y' => $row * $cell, 'width' => $cell - 2, 'height' => $cell - 2]);
+                $orientations[] = $renderer->hasHorizontalGrain($piece);
+            }
+        }
+
+        $this->assertContains(true, $orientations, 'Some pieces are turned by 90°.');
+        $this->assertContains(false, $orientations, 'Some pieces keep a vertical grain.');
     }
 
     public function test_grain_orientation_is_detected(): void

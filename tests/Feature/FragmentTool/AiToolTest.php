@@ -394,6 +394,58 @@ class AiToolTest extends TestCase
             ->assertJsonStructure(['message']);
     }
 
+    /* ---------------------------------------------------------------- Test mode */
+
+    public function test_test_mode_runs_the_whole_generation_without_calling_gemini(): void
+    {
+        config(['services.gemini.key' => null, 'fragment_tool.ai.test_mode_delay_ms' => 0]);
+        Http::fake();
+
+        $events = $this->events($this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 4, 'test_mode' => '1'])));
+
+        $this->assertCount(4, $this->ofType($events, 'candidate'));
+        $result = $this->ofType($events, 'result')[0];
+        $this->assertCount(4, $result['candidates']);
+        $this->assertNotNull($result['preferred']);
+        foreach ($result['candidates'] as $candidate) {
+            $this->assertCount(16, $candidate['grid']);
+            $this->assertGreaterThanOrEqual(5, $candidate['score']);
+        }
+        $this->assertSame(0.0, (float) $result['usage']['cost_usd']);
+        $this->assertSame('gemini-nano-banana-2.1', $result['usage']['calls'][0]['model']);
+        Http::assertNothingSent();
+    }
+
+    public function test_test_mode_refines_and_suggests_without_calling_gemini(): void
+    {
+        config(['services.gemini.key' => null, 'fragment_tool.ai.test_mode_delay_ms' => 0]);
+        Http::fake();
+        $grid = json_encode($this->expectedProjection());
+
+        $events = $this->events($this->postTool('admin.tool.ai.refine', $this->imagePayload(['grid' => $grid, 'test_mode' => '1'])));
+        $this->assertCount(1, $this->ofType($events, 'result'));
+        $this->assertSame([], $this->ofType($events, 'error'));
+
+        $response = $this->postTool('admin.tool.ai.suggest', $this->imagePayload(['grid' => $grid, 'test_mode' => '1']));
+        $response->assertOk()->assertJsonPath('usage.cost_usd', 0);
+        foreach ($response->json('suggestions') as $suggestion) {
+            $this->assertSame('Suggestion de test.', $suggestion['reason']);
+            $this->assertLessThan(16, $suggestion['row']);
+        }
+
+        Http::assertNothingSent();
+    }
+
+    public function test_without_test_mode_and_api_key_ai_stays_disabled(): void
+    {
+        config(['services.gemini.key' => null]);
+        Http::fake();
+
+        $this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 1, 'test_mode' => '0']))->assertStatus(503);
+
+        Http::assertNothingSent();
+    }
+
     /* ---------------------------------------------------------------- Helpers */
 
     public function test_json_answers_are_read_tolerantly(): void

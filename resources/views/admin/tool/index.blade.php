@@ -99,17 +99,14 @@
 
     {{-- 2. Generate --}}
     <section class="{{ $card }}" data-ref="generate-section">
-        <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-            <p class="{{ $label }} mb-0">2 · Générer des versions</p>
-            <p data-ref="cost" class="font-sans-soft text-xs text-muted-foreground"></p>
-        </div>
+        <p class="{{ $label }} mb-3">2 · Générer des versions</p>
 
-        <div class="grid lg:grid-cols-2 gap-6">
+        <div class="max-w-xl">
             <div class="space-y-3">
                 <p class="font-sans-soft text-sm text-foreground font-medium">Redessin IA</p>
                 @unless ($config['ai']['enabled'])
                     <p class="font-sans-soft text-sm text-muted-foreground">
-                        Redessin IA désactivé : ajoutez <code class="font-mono">GEMINI_API_KEY</code> dans le fichier <code class="font-mono">.env</code>.
+                        Redessin IA désactivé : ajoutez <code class="font-mono">GEMINI_API_KEY</code> dans le fichier <code class="font-mono">.env</code>, ou activez le mode test.
                     </p>
                 @endunless
                 <div class="flex items-center gap-2">
@@ -122,27 +119,13 @@
                     @endforeach
                 </div>
                 <textarea data-ref="hint" rows="2" maxlength="{{ $config['ai']['hintMaxLength'] }}" class="{{ $input }}" placeholder="Consigne facultative (ex. : garder le chapeau rouge)"></textarea>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-4">
                     <button type="button" class="{{ $primary }}" data-action="generate" data-ai disabled>Générer</button>
-                    <button type="button" class="{{ $button }} hidden" data-action="stop">Arrêter</button>
+                    <label class="flex items-center gap-1.5 font-sans-soft text-sm cursor-pointer">
+                        <input type="checkbox" data-ref="test-mode" class="rounded border-border">
+                        Mode test <span class="text-muted-foreground">(sans appel à Gemini, gratuit)</span>
+                    </label>
                 </div>
-            </div>
-
-            <div class="space-y-3">
-                <p class="font-sans-soft text-sm text-foreground font-medium">Conversion sans IA</p>
-                <div class="grid grid-cols-2 gap-2">
-                    <select data-ref="reduction" class="{{ $input }}">
-                        @foreach ($config['reductions'] as $key => $reductionLabel)
-                            <option value="{{ $key }}" @selected($key === 'contours')>{{ $reductionLabel }}</option>
-                        @endforeach
-                    </select>
-                    <select data-ref="matching" class="{{ $input }}">
-                        @foreach ($config['matchings'] as $key => $matchingLabel)
-                            <option value="{{ $key }}" @selected($key === 'tone')>{{ $matchingLabel }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                <button type="button" class="{{ $button }}" data-action="convert" disabled>Convertir</button>
             </div>
         </div>
 
@@ -219,11 +202,36 @@
         </div>
     </section>
 
+    {{-- AI session stats, fixed while scrolling --}}
+    <aside class="fixed bottom-4 right-4 z-40 w-64 {{ $card }} p-4 shadow-lg space-y-1.5 font-sans-soft text-xs">
+        <div class="flex items-center justify-between">
+            <p class="uppercase tracking-widest text-muted-foreground">Session IA</p>
+            <span data-ref="stats-mode" class="hidden px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Mode test</span>
+        </div>
+        <p class="text-muted-foreground">Modèle : <span data-ref="stats-models" class="text-foreground font-mono break-all">{{ $config['ai']['imageModel'] }}</span></p>
+        <p class="text-muted-foreground">Coût : <span data-ref="stats-cost" class="text-foreground font-mono">0.0000 $</span></p>
+        <p class="text-muted-foreground">Dernière exécution : <span data-ref="stats-last" class="text-foreground font-mono tabular-nums">–</span></p>
+        <p class="text-muted-foreground">Temps total : <span data-ref="stats-total" class="text-foreground font-mono tabular-nums">00:00</span></p>
+    </aside>
+
+    {{-- AI progress overlay --}}
+    <div data-ref="ai-overlay" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" role="dialog" aria-modal="true" aria-live="polite">
+        <div class="w-full max-w-sm {{ $card }} shadow-xl text-center space-y-4">
+            <div class="mx-auto h-10 w-10 rounded-full border-4 border-border border-t-foreground animate-spin"></div>
+            <p data-ref="ai-overlay-message" class="font-sans-soft text-sm text-foreground"></p>
+            <p data-ref="ai-overlay-timer" class="font-mono text-3xl text-foreground tabular-nums">00:00</p>
+            <button type="button" class="{{ $button }}" data-action="stop">Arrêter</button>
+        </div>
+    </div>
+
     {{-- 5. Result --}}
     <section class="{{ $card }} hidden" data-ref="result-section">
         <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
             <p class="{{ $label }} mb-0">5 · Résultat</p>
-            <p data-ref="result-info" class="font-sans-soft text-sm text-muted-foreground"></p>
+            <div class="flex flex-wrap items-center gap-3">
+                <p data-ref="result-info" class="font-sans-soft text-sm text-muted-foreground"></p>
+                <button type="button" class="{{ $primary }}" data-action="download-zip">Tout télécharger (.zip)</button>
+            </div>
         </div>
         <div class="grid md:grid-cols-3 gap-4">
             <figure class="space-y-2">

@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\FragmentTool\Concerns\BuildsToolFixtures;
 use Tests\TestCase;
+use ZipArchive;
 
 class FragmentToolTest extends TestCase
 {
@@ -330,6 +331,54 @@ class FragmentToolTest extends TestCase
             $this->assertStringContainsString($filename, $response->headers->get('Content-Disposition'));
             $this->assertNotFalse(imagecreatefromstring($response->getContent()));
         }
+    }
+
+    public function test_archive_zips_the_three_renders_in_one_folder(): void
+    {
+        $response = $this->postTool('admin.tool.archive', [
+            'format_id' => $this->format->id,
+            'palette_id' => $this->palette->id,
+            'grid' => json_encode($this->subjectGrid()),
+            'name' => 'chat',
+        ]);
+
+        $response->assertOk()->assertHeader('Content-Type', 'application/zip');
+        $this->assertStringContainsString('filename="chat_16x16.zip"', $response->headers->get('Content-Disposition'));
+
+        $path = tempnam(sys_get_temp_dir(), 'zip_test');
+        file_put_contents($path, $response->getContent());
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($path));
+        $names = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $names[] = $zip->getNameIndex($i);
+            $this->assertNotFalse(imagecreatefromstring($zip->getFromIndex($i)));
+        }
+        $zip->close();
+        unlink($path);
+
+        $this->assertSame(['chat_16x16/chat_16x16.png', 'chat_16x16/chat_16x16_bois.png', 'chat_16x16/chat_16x16_plan.png'], $names);
+    }
+
+    public function test_archive_requires_a_valid_grid(): void
+    {
+        $this->post(route('admin.tool.archive'))->assertRedirect(route('admin.login'));
+
+        $this->postTool('admin.tool.archive', [
+            'format_id' => $this->format->id,
+            'palette_id' => $this->palette->id,
+        ])->assertJsonValidationErrors('grid');
+    }
+
+    public function test_admin_sees_the_static_tool_mockup(): void
+    {
+        $this->get(route('admin.tool-mockup'))->assertRedirect(route('admin.login'));
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.tool-mockup'))
+            ->assertOk()
+            ->assertSee('Maquette statique')
+            ->assertSee('Tout télécharger (.zip)');
     }
 
     public function test_render_refuses_an_unknown_kind(): void

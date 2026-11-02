@@ -8,8 +8,10 @@ use App\Http\Requests\Admin\FragmentTool\ToolRequest;
 use App\Models\Format;
 use App\Models\Palette;
 use App\Services\FragmentTool\Ai\AiPipeline;
+use App\Services\FragmentTool\Ai\FakeGeminiClient;
 use App\Services\FragmentTool\Ai\GeminiException;
 use App\Services\FragmentTool\ConversionPipeline;
+use App\Services\FragmentTool\Grid;
 use App\Services\FragmentTool\Matching\MatcherRegistry;
 use App\Services\FragmentTool\MotifPainter;
 use App\Services\FragmentTool\Reduction\ReducerRegistry;
@@ -24,6 +26,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use ZipArchive;
 
 class FragmentToolController extends Controller
 {
@@ -79,8 +82,6 @@ class FragmentToolController extends Controller
             'palettes' => $palettes,
             'motifs' => MotifPainter::MOTIFS,
             'densities' => MotifPainter::DENSITIES,
-            'reductions' => $this->reducers->labels(),
-            'matchings' => $this->matchers->labels(),
             'maxUploadKb' => config('fragment_tool.max_upload_kb'),
             'ai' => [
                 'enabled' => $this->ai->isEnabled(),
@@ -91,12 +92,12 @@ class FragmentToolController extends Controller
                 'suggestModel' => config('fragment_tool.ai.suggest_model'),
             ],
             'routes' => [
-                'convert' => route('admin.tool.convert'),
                 'generate' => route('admin.tool.ai.generate'),
                 'refine' => route('admin.tool.ai.refine'),
                 'suggest' => route('admin.tool.ai.suggest'),
                 'motifs' => route('admin.tool.motifs'),
                 'render' => route('admin.tool.render'),
+                'archive' => route('admin.tool.archive'),
             ],
         ];
 
@@ -166,7 +167,8 @@ class FragmentToolController extends Controller
             'hint' => ['nullable', 'string', 'max:'.config('fragment_tool.ai.hint_max_length')],
         ]);
 
-        if (! $this->ai->isEnabled()) {
+        $ai = $this->pipeline($request);
+        if (! $ai->isEnabled()) {
             return $this->aiDisabled();
         }
 
@@ -176,7 +178,7 @@ class FragmentToolController extends Controller
         $palette = $request->palette();
         $backgroundId = $request->backgroundId();
 
-        return $this->ndjson(fn (callable $emit) => $this->ai->generate(
+        return $this->ndjson(fn (callable $emit) => $ai->generate(
             $source, $crop, $format->cols, $format->rows, $palette, $backgroundId,
             $request->integer('count'), $request->input('hint'), $emit,
         ));
@@ -190,7 +192,8 @@ class FragmentToolController extends Controller
             'hint' => ['nullable', 'string', 'max:'.config('fragment_tool.ai.hint_max_length')],
         ]);
 
-        if (! $this->ai->isEnabled()) {
+        $ai = $this->pipeline($request);
+        if (! $ai->isEnabled()) {
             return $this->aiDisabled();
         }
 
@@ -202,7 +205,7 @@ class FragmentToolController extends Controller
         $grid = $request->grid();
         $remarks = array_values(array_filter(array_map('trim', preg_split('/\R/', (string) $request->input('remarks')) ?: [])));
 
-        return $this->ndjson(fn (callable $emit) => $this->ai->refine(
+        return $this->ndjson(fn (callable $emit) => $ai->refine(
             $source, $crop, $format->cols, $format->rows, $palette, $backgroundId,
             $grid, $remarks ?: ['Améliore la lisibilité du sujet.'], $request->input('hint'), $emit,
         ));
@@ -212,12 +215,13 @@ class FragmentToolController extends Controller
     {
         $request->validate(['grid' => ['required', 'string']]);
 
-        if (! $this->ai->isEnabled()) {
+        $ai = $this->pipeline($request);
+        if (! $ai->isEnabled()) {
             return $this->aiDisabled();
         }
 
         try {
-            return response()->json($this->ai->suggest(
+            return response()->json($ai->suggest(
                 $request->source(),
                 $request->crop(),
                 $request->palette(),
@@ -263,21 +267,88 @@ class FragmentToolController extends Controller
         ]);
 
         $grid = $request->grid();
-        $palette = $request->palette();
-        $name = Str::slug($request->input('name') ?: 'fragment', '_') ?: 'fragment';
-        $base = "{$name}_{$grid->cols}x{$grid->rows}";
-
-        [$png, $filename] = match ($request->input('kind')) {
-            'image' => [$flat->render($grid, $palette), "{$base}.png"],
-            'wood' => [$wood->render($grid, $palette), "{$base}_bois.png"],
-            'plan' => [$plan->render($grid, $palette, $request->input('name') ?: 'Fragment', $request->input('model')), "{$base}_plan.png"],
-        };
+        $kind = $request->input('kind');
+        $png = $this->renderKind($kind, $request, $grid, $flat, $wood, $plan);
 
         return response($png, 200, [
             'Content-Type' => 'image/png',
-            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Disposition' => 'inline; filename="'.$this->renderFilename($kind, $request, $grid).'"',
             'Cache-Control' => 'no-store',
         ]);
+    }
+
+    /**
+     * The three renders (flat image, wood, plan) in one ZIP, inside a single folder.
+     */
+    public function archive(ToolRequest $request, FlatRenderer $flat, WoodRenderer $wood, PlanRenderer $plan): Response
+    {
+        $request->validate([
+            'grid' => ['required', 'string'],
+            'name' => ['nullable', 'string', 'max:120'],
+            'model' => ['nullable', 'string', 'max:80'],
+        ]);
+
+        $grid = $request->grid();
+        $folder = $this->renderBase($request, $grid);
+        $path = tempnam(sys_get_temp_dir(), 'fragment_zip');
+        $zip = new ZipArchive;
+        $zip->open($path, ZipArchive::OVERWRITE);
+
+        foreach (['image', 'wood', 'plan'] as $kind) {
+            $zip->addFromString(
+                "{$folder}/".$this->renderFilename($kind, $request, $grid),
+                $this->renderKind($kind, $request, $grid, $flat, $wood, $plan),
+            );
+        }
+
+        $zip->close();
+        $bytes = file_get_contents($path);
+        unlink($path);
+
+        return response($bytes, 200, [
+            'Content-Type' => 'application/zip',
+            'Content-Disposition' => 'attachment; filename="'.$folder.'.zip"',
+            'Cache-Control' => 'no-store',
+        ]);
+    }
+
+    private function renderKind(string $kind, ToolRequest $request, Grid $grid, FlatRenderer $flat, WoodRenderer $wood, PlanRenderer $plan): string
+    {
+        $palette = $request->palette();
+
+        return match ($kind) {
+            'image' => $flat->render($grid, $palette),
+            'wood' => $wood->render($grid, $palette),
+            'plan' => $plan->render($grid, $palette, $request->input('name') ?: 'Fragment', $request->input('model')),
+        };
+    }
+
+    private function renderFilename(string $kind, ToolRequest $request, Grid $grid): string
+    {
+        $base = $this->renderBase($request, $grid);
+
+        return match ($kind) {
+            'image' => "{$base}.png",
+            'wood' => "{$base}_bois.png",
+            'plan' => "{$base}_plan.png",
+        };
+    }
+
+    private function renderBase(ToolRequest $request, Grid $grid): string
+    {
+        $name = Str::slug($request->input('name') ?: 'fragment', '_') ?: 'fragment';
+
+        return "{$name}_{$grid->cols}x{$grid->rows}";
+    }
+
+    /**
+     * Test mode swaps Gemini for a local fake: the whole flow runs without any call or cost.
+     */
+    private function pipeline(ToolRequest $request): AiPipeline
+    {
+        return $request->boolean('test_mode')
+            ? app(AiPipeline::class, ['client' => app(FakeGeminiClient::class)])
+            : $this->ai;
     }
 
     /**

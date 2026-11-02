@@ -6,6 +6,11 @@ import { counts, drawGrid } from './grid.js';
 const STYLE_LABELS = { base: 'Standard', contrast: 'Contrasté', faithful: 'Fidèle', cute: 'Mignon' };
 const RENDER_DELAY_MS = 500;
 
+const formatDuration = (ms) => {
+    const seconds = Math.floor(ms / 1000);
+    return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+};
+
 class FragmentTool {
     constructor(root) {
         this.root = root;
@@ -23,6 +28,9 @@ class FragmentTool {
         this.suggestions = [];
         this.cost = 0;
         this.aiController = null;
+        this.aiTimer = null;
+        this.aiStartedAt = null;
+        this.aiTotalMs = 0;
         this.motifController = null;
         this.renderController = null;
         this.renderTimer = null;
@@ -92,13 +100,17 @@ class FragmentTool {
 
         this.action('generate').addEventListener('click', () => this.generate());
         this.action('stop').addEventListener('click', () => this.aiController?.abort());
-        this.action('convert').addEventListener('click', () => this.convert());
         this.action('clear-versions').addEventListener('click', () => {
             if (window.confirm('Effacer toutes les versions ?')) {
                 this.clearVersions();
             }
         });
         this.action('refine').addEventListener('click', () => this.refine());
+        this.ref('test-mode').addEventListener('change', () => {
+            this.ref('stats-mode').classList.toggle('hidden', !this.isTestMode());
+            this.ref('refine').classList.toggle('hidden', !this.selectedVersion() || !this.isAiAvailable());
+            this.updateButtons();
+        });
 
         this.root.querySelectorAll('[data-tool]').forEach((button) => {
             button.addEventListener('click', () => this.selectTool(button.dataset.tool));
@@ -121,6 +133,7 @@ class FragmentTool {
         this.root.querySelectorAll('[data-download]').forEach((button) => {
             button.addEventListener('click', () => this.downloadRender(button.dataset.download));
         });
+        this.action('download-zip').addEventListener('click', () => this.downloadArchive());
 
         document.addEventListener('keydown', (event) => this.shortcut(event));
     }
@@ -246,6 +259,23 @@ class FragmentTool {
         return data;
     }
 
+    /**
+     * AI request data; test mode makes the server answer without calling Gemini.
+     */
+    aiData(options) {
+        const data = this.formData({ withImage: true, ...options });
+        data.append('test_mode', this.isTestMode() ? '1' : '0');
+        return data;
+    }
+
+    isTestMode() {
+        return this.ref('test-mode').checked;
+    }
+
+    isAiAvailable() {
+        return this.config.ai.enabled || this.isTestMode();
+    }
+
     canSendImage() {
         return Boolean(this.file && this.crop && this.cropper.isLargeEnough());
     }
@@ -255,11 +285,11 @@ class FragmentTool {
         const ready = this.canSendImage();
         const selected = this.selectedVersion();
 
-        this.action('generate').disabled = busy || !ready || !this.config.ai.enabled;
-        this.action('convert').disabled = busy || !ready;
-        this.action('refine').disabled = busy || !ready || !selected || !this.config.ai.enabled;
-        this.action('suggest').disabled = busy || !ready || !selected || !this.config.ai.enabled;
-        this.action('stop').classList.toggle('hidden', !busy);
+        const ai = this.isAiAvailable();
+
+        this.action('generate').disabled = busy || !ready || !ai;
+        this.action('refine').disabled = busy || !ready || !selected || !ai;
+        this.action('suggest').disabled = busy || !ready || !selected || !ai;
     }
 
     startAi(message) {
@@ -268,12 +298,41 @@ class FragmentTool {
         this.ref('warnings').replaceChildren();
         this.setStatus(message);
         this.updateButtons();
+        this.showAiOverlay();
         return this.aiController.signal;
     }
 
     endAi() {
         this.aiController = null;
+        this.hideAiOverlay();
         this.updateButtons();
+    }
+
+    showAiOverlay() {
+        this.aiStartedAt = Date.now();
+        const tick = () => {
+            const elapsed = formatDuration(Date.now() - this.aiStartedAt);
+            this.ref('ai-overlay-timer').textContent = elapsed;
+            this.ref('stats-last').textContent = elapsed;
+        };
+
+        tick();
+        this.aiTimer = window.setInterval(tick, 1000);
+        this.ref('ai-overlay').classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    hideAiOverlay() {
+        window.clearInterval(this.aiTimer);
+        this.aiTimer = null;
+
+        const elapsed = Date.now() - this.aiStartedAt;
+        this.aiTotalMs += elapsed;
+        this.ref('stats-last').textContent = formatDuration(elapsed);
+        this.ref('stats-total').textContent = formatDuration(this.aiTotalMs);
+
+        this.ref('ai-overlay').classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
     }
 
     handleFailure(error) {
@@ -290,12 +349,17 @@ class FragmentTool {
             return;
         }
         this.cost += usage.cost_usd ?? 0;
-        this.ref('cost').textContent = `Coût IA de la session : ${this.cost.toFixed(4)} $`;
+        this.ref('stats-cost').textContent = `${this.cost.toFixed(4)} $`;
+
+        const models = [...new Set((usage.calls ?? []).map((call) => call.model))];
+        if (models.length) {
+            this.ref('stats-models').textContent = models.join(', ');
+        }
     }
 
     async generate() {
         const count = Number(this.root.querySelector('input[name="ai-count"]:checked').value);
-        const data = this.formData({ withImage: true });
+        const data = this.aiData();
         data.append('count', count);
         data.append('hint', this.ref('hint').value.trim());
 
@@ -346,7 +410,7 @@ class FragmentTool {
 
     async refine() {
         const version = this.selectedVersion();
-        const data = this.formData({ withImage: true, backgroundId: version.backgroundId });
+        const data = this.aiData({ backgroundId: version.backgroundId });
         data.append('grid', JSON.stringify(version.grid));
         data.append('remarks', this.ref('remarks').value);
         data.append('hint', this.ref('hint').value.trim());
@@ -388,39 +452,9 @@ class FragmentTool {
         }
     }
 
-    async convert() {
-        const data = this.formData({ withImage: true });
-        const reduction = this.ref('reduction');
-        const matching = this.ref('matching');
-        data.append('reduction', reduction.value);
-        data.append('matching', matching.value);
-
-        this.action('convert').disabled = true;
-        this.hideError();
-        this.setStatus('Conversion…');
-
-        try {
-            const result = await postJson(this.config.routes.convert, data);
-            const version = this.addVersion({
-                grid: result.grid,
-                label: `Sans IA · ${reduction.selectedOptions[0].text} / ${matching.selectedOptions[0].text}`,
-                kind: 'classic',
-                backgroundId: this.backgroundId(),
-            });
-            this.setStatus('Version ajoutée.');
-            if (!this.selectedId) {
-                this.selectVersion(version.id);
-            }
-        } catch (error) {
-            this.handleFailure(error);
-        } finally {
-            this.updateButtons();
-        }
-    }
-
     async suggest() {
         const version = this.selectedVersion();
-        const data = this.formData({ withImage: true, backgroundId: version.backgroundId });
+        const data = this.aiData({ backgroundId: version.backgroundId });
         data.append('grid', JSON.stringify(this.editor.current()));
 
         const signal = this.startAi('Demande de suggestions…');
@@ -465,7 +499,7 @@ class FragmentTool {
         this.suggestions = [];
         this.renderSuggestions();
         this.ref('remarks').value = version.problems.join('\n');
-        this.ref('refine').classList.toggle('hidden', !this.config.ai.enabled);
+        this.ref('refine').classList.toggle('hidden', !this.isAiAvailable());
         this.ref('finish-section').classList.remove('hidden');
         this.ref('result-section').classList.remove('hidden');
         this.renderVersions();
@@ -735,12 +769,30 @@ class FragmentTool {
         }
     }
 
+    async downloadArchive() {
+        const grid = this.editor.current();
+        if (!grid) {
+            return;
+        }
+        const data = this.renderData(grid, 'zip');
+        data.delete('kind');
+        try {
+            const { blob, filename } = await postBlob(this.config.routes.archive, data);
+            download(blob, filename);
+        } catch (error) {
+            this.handleFailure(error);
+        }
+    }
+
     /* ---------------------------------------------------------------- Messages */
 
     setStatus(message) {
         const status = this.ref('status');
         status.textContent = message;
         status.classList.toggle('hidden', !message);
+        if (message) {
+            this.ref('ai-overlay-message').textContent = message;
+        }
     }
 
     addWarning(message) {

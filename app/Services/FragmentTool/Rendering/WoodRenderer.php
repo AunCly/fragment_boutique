@@ -12,9 +12,9 @@ use Random\Engine\Mt19937;
 use Random\Randomizer;
 
 /**
- * Wood render: each cell is drawn with a piece of the photo of its essence, grain
- * oriented the same way (vertical) for all essences. Essences without a photo are
- * rendered flat.
+ * Wood render: each cell is drawn with a piece of the photo of its essence, turned
+ * by a random quarter turn (0°, 90°, -90° or 180°) like real pieces laid by hand.
+ * Essences without a photo are rendered flat.
  */
 class WoodRenderer
 {
@@ -26,7 +26,7 @@ class WoodRenderer
 
     private const SEED = 20261102;
 
-    /** @var array<string, array{0: GdImage, 1: GdImage}|null> photo and its 180° rotation, by path */
+    /** @var array<string, list<GdImage>|null> photo turned by 0°, 90°, 180° and 270°, by path */
     private static array $textures = [];
 
     public function render(Grid $grid, ToolPalette $palette): string
@@ -49,7 +49,7 @@ class WoodRenderer
                     $flat[$id] ??= imagecolorallocate($image, ...$essence->rgb);
                     imagefilledrectangle($image, $x, $y, $x + $cell - 1, $y + $cell - 1, $flat[$id]);
                 } else {
-                    $this->drawPiece($image, $texture[$random->getInt(0, 3) === 0 ? 1 : 0], $x, $y, $cell, $random);
+                    $this->drawPiece($image, $texture[$random->getInt(0, count($texture) - 1)], $x, $y, $cell, $random);
                 }
 
                 imageline($image, $x + $cell - 1, $y, $x + $cell - 1, $y + $cell - 1, $joint);
@@ -91,7 +91,7 @@ class WoodRenderer
     }
 
     /**
-     * @return array{0: GdImage, 1: GdImage}|null
+     * @return list<GdImage>|null
      */
     private function texture(Essence $essence): ?array
     {
@@ -119,7 +119,12 @@ class WoodRenderer
             $photo = imagerotate($photo, 90, 0);
         }
 
-        return self::$textures[$essence->texturePath] = [$photo, imagerotate($photo, 180, 0)];
+        return self::$textures[$essence->texturePath] = [
+            $photo,
+            imagerotate($photo, 90, 0),
+            imagerotate($photo, 180, 0),
+            imagerotate($photo, 270, 0),
+        ];
     }
 
     /**
