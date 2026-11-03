@@ -3,9 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Faq;
-use App\Models\Format;
 use App\Models\GalleryImage;
-use App\Models\WoodTexture;
 use App\Services\ShopifyAdminService;
 use App\Services\ShopifyStorefrontService;
 use Illuminate\Http\JsonResponse;
@@ -96,14 +94,7 @@ class ShopifyController extends Controller
 
     public function custom(): View
     {
-        if (! config('app.builder_enabled')) {
-            return view('shop.custom-coming-soon');
-        }
-
-        $woodTextures = WoodTexture::active()->ordered()->get()->map->toBuilderEntry()->values();
-        $formats = Format::active()->ordered()->get()->map->toBuilderEntry()->values();
-
-        return view('shop.custom', compact('woodTextures', 'formats'));
+        return view('shop.custom-coming-soon');
     }
 
     public function thankYou(): View

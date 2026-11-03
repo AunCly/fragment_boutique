@@ -102,7 +102,7 @@
     </div>
 
     <div class="flex items-center gap-3 pt-2">
-        <button type="submit" class="px-6 py-2.5 bg-primary text-primary-foreground rounded-full font-sans-soft text-sm font-medium hover:opacity-90 transition">
+        <button type="submit" class="px-6 py-2.5 bg-primary text-background font-sans-soft text-sm uppercase hover:opacity-90 transition">
             {{ $palette->exists ? 'Enregistrer' : 'Créer' }}
         </button>
         <a href="{{ route('admin.palettes.index') }}" class="font-sans-soft text-sm text-muted-foreground hover:text-foreground transition">

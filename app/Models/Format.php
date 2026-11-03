@@ -55,15 +55,4 @@ class Format extends Model
 
         return $this->cols > $this->rows ? 'landscape' : 'portrait';
     }
-
-    /** Returns the entry formatted for the React builder (matches FormatOption interface). */
-    public function toBuilderEntry(): array
-    {
-        return [
-            'key' => $this->slug,
-            'shape' => $this->shape,
-            'label' => $this->label,
-            'format' => ['cols' => $this->cols, 'rows' => $this->rows],
-        ];
-    }
 }

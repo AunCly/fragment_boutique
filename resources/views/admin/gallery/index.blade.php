@@ -59,7 +59,7 @@
         >
     </div>
 
-    <button type="submit" class="px-6 py-2.5 bg-primary text-primary-foreground rounded-full font-sans-soft text-sm font-medium hover:opacity-90 transition">
+    <button type="submit" class="px-6 py-2.5 bg-primary text-background font-sans-soft text-sm uppercase hover:opacity-90 transition">
         Uploader
     </button>
 </form>

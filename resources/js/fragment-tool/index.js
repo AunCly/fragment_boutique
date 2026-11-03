@@ -47,6 +47,8 @@ class FragmentTool {
         this.selectPalette(this.config.palettes[0].id);
         this.selectFormat(Number(this.root.querySelector('[data-format]').dataset.format));
         this.selectTool('brush');
+        this.selectAiTab('refine');
+        this.selectResultTab('wood');
         this.updateButtons();
     }
 
@@ -108,8 +110,19 @@ class FragmentTool {
         this.action('refine').addEventListener('click', () => this.refine());
         this.ref('test-mode').addEventListener('change', () => {
             this.ref('stats-mode').classList.toggle('hidden', !this.isTestMode());
-            this.ref('refine').classList.toggle('hidden', !this.selectedVersion() || !this.isAiAvailable());
+            this.ref('ai-help').classList.toggle('hidden', !this.selectedVersion() || !this.isAiAvailable());
             this.updateButtons();
+        });
+        this.action('new-project').addEventListener('click', () => {
+            if (this.confirmReset('Recommencer efface l\'image et les versions. Continuer ?')) {
+                window.location.reload();
+            }
+        });
+        this.root.querySelectorAll('[data-ai-tab]').forEach((button) => {
+            button.addEventListener('click', () => this.selectAiTab(button.dataset.aiTab));
+        });
+        this.root.querySelectorAll('[data-result-tab]').forEach((button) => {
+            button.addEventListener('click', () => this.selectResultTab(button.dataset.resultTab));
         });
 
         this.root.querySelectorAll('[data-tool]').forEach((button) => {
@@ -276,11 +289,41 @@ class FragmentTool {
         return this.config.ai.enabled || this.isTestMode();
     }
 
+    /**
+     * Header progress: done steps, then the current one.
+     */
+    updateSteps() {
+        const current = this.selectedVersion() ? 3 : this.versions.length ? 2 : this.file ? 1 : 0;
+        this.root.querySelectorAll('[data-step]').forEach((step) => {
+            const index = Number(step.dataset.step);
+            step.dataset.state = index < current ? 'done' : index === current ? 'current' : 'todo';
+        });
+    }
+
+    selectAiTab(name) {
+        this.root.querySelectorAll('[data-ai-tab]').forEach((button) => {
+            button.dataset.active = String(button.dataset.aiTab === name);
+        });
+        this.root.querySelectorAll('[data-ai-panel]').forEach((panel) => {
+            panel.classList.toggle('hidden', panel.dataset.aiPanel !== name);
+        });
+    }
+
+    selectResultTab(name) {
+        this.root.querySelectorAll('[data-result-tab]').forEach((button) => {
+            button.dataset.active = String(button.dataset.resultTab === name);
+        });
+        this.root.querySelectorAll('[data-result-panel]').forEach((panel) => {
+            panel.classList.toggle('hidden', panel.dataset.resultPanel !== name);
+        });
+    }
+
     canSendImage() {
         return Boolean(this.file && this.crop && this.cropper.isLargeEnough());
     }
 
     updateButtons() {
+        this.updateSteps();
         const busy = Boolean(this.aiController);
         const ready = this.canSendImage();
         const selected = this.selectedVersion();
@@ -298,31 +341,30 @@ class FragmentTool {
         this.ref('warnings').replaceChildren();
         this.setStatus(message);
         this.updateButtons();
-        this.showAiOverlay();
+        this.showAiProgress();
         return this.aiController.signal;
     }
 
     endAi() {
         this.aiController = null;
-        this.hideAiOverlay();
+        this.hideAiProgress();
         this.updateButtons();
     }
 
-    showAiOverlay() {
+    showAiProgress() {
         this.aiStartedAt = Date.now();
         const tick = () => {
             const elapsed = formatDuration(Date.now() - this.aiStartedAt);
-            this.ref('ai-overlay-timer').textContent = elapsed;
+            this.ref('ai-progress-timer').textContent = elapsed;
             this.ref('stats-last').textContent = elapsed;
         };
 
         tick();
         this.aiTimer = window.setInterval(tick, 1000);
-        this.ref('ai-overlay').classList.remove('hidden');
-        document.body.classList.add('overflow-hidden');
+        this.ref('ai-progress').classList.remove('hidden');
     }
 
-    hideAiOverlay() {
+    hideAiProgress() {
         window.clearInterval(this.aiTimer);
         this.aiTimer = null;
 
@@ -331,8 +373,7 @@ class FragmentTool {
         this.ref('stats-last').textContent = formatDuration(elapsed);
         this.ref('stats-total').textContent = formatDuration(this.aiTotalMs);
 
-        this.ref('ai-overlay').classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
+        this.ref('ai-progress').classList.add('hidden');
     }
 
     handleFailure(error) {
@@ -499,9 +540,10 @@ class FragmentTool {
         this.suggestions = [];
         this.renderSuggestions();
         this.ref('remarks').value = version.problems.join('\n');
-        this.ref('refine').classList.toggle('hidden', !this.isAiAvailable());
-        this.ref('finish-section').classList.remove('hidden');
-        this.ref('result-section').classList.remove('hidden');
+        this.ref('ai-help').classList.toggle('hidden', !this.isAiAvailable());
+        for (const name of ['editor-section', 'finish-section', 'result-section']) {
+            this.ref(name).classList.remove('hidden');
+        }
         this.renderVersions();
         this.updateButtons();
         this.applyMotif();
@@ -514,7 +556,7 @@ class FragmentTool {
         this.editor.base = null;
         this.suggestions = [];
         this.renderSuggestions();
-        for (const name of ['versions-section', 'finish-section', 'result-section', 'refine']) {
+        for (const name of ['versions-section', 'editor-section', 'finish-section', 'ai-help', 'result-section']) {
             this.ref(name).classList.add('hidden');
         }
         this.renderVersions();
@@ -524,11 +566,13 @@ class FragmentTool {
     renderVersions() {
         const container = this.ref('versions');
         this.ref('versions-section').classList.toggle('hidden', this.versions.length === 0);
+        this.ref('empty-state').classList.toggle('hidden', this.versions.length > 0);
+        this.ref('versions-count').textContent = `· ${this.versions.length}`;
 
         container.replaceChildren(...this.versions.map((version) => {
             const card = document.createElement('button');
             card.type = 'button';
-            card.className = `relative w-36 p-2 rounded-xl border text-left transition ${version.id === this.selectedId ? 'border-foreground ring-1 ring-foreground' : 'border-border hover:bg-muted/50'}`;
+            card.className = `relative shrink-0 w-28 p-1.5 rounded-lg border text-left transition ${version.id === this.selectedId ? 'border-foreground ring-1 ring-foreground' : 'border-border hover:bg-muted/50'}`;
             card.title = version.problems.length ? version.problems.map((problem) => `• ${problem}`).join('\n') : version.label;
             card.addEventListener('click', () => this.selectVersion(version.id));
 
@@ -536,19 +580,25 @@ class FragmentTool {
             canvas.className = 'w-full h-auto rounded [image-rendering:pixelated]';
             drawGrid(canvas, version.grid, this.essences, Math.max(1, Math.floor(128 / Math.max(version.grid.length, version.grid[0].length))));
 
+            const header = document.createElement('div');
+            header.className = 'flex items-center justify-between mt-1 font-sans-soft text-[11px]';
+            const number = document.createElement('span');
+            number.className = 'text-foreground';
+            number.textContent = `n° ${version.id}`;
+            const score = document.createElement('span');
+            score.className = 'font-mono text-muted-foreground';
+            score.textContent = version.score !== null ? `${version.score}/10` : '–';
+            header.append(number, score);
+
             const caption = document.createElement('p');
-            caption.className = 'font-sans-soft text-xs text-foreground mt-1.5 leading-snug';
-            caption.textContent = `n° ${version.id} · ${version.label}`;
+            caption.className = 'font-sans-soft text-[10px] text-muted-foreground truncate';
+            caption.textContent = version.problems.length ? `${version.label} · ${version.problems.length} problème(s)` : version.label;
 
-            const score = document.createElement('p');
-            score.className = 'font-sans-soft text-xs text-muted-foreground';
-            score.textContent = version.score !== null ? `Avis : ${version.score}/10${version.problems.length ? ` · ${version.problems.length} problème(s)` : ''}` : (version.kind === 'ai' ? 'Sans note' : '');
-
-            card.append(canvas, caption, score);
+            card.append(canvas, header, caption);
 
             if (version.preferred) {
                 const star = document.createElement('span');
-                star.className = 'absolute top-1 right-2 text-amber-500 text-lg';
+                star.className = 'absolute top-0.5 right-1.5 text-amber-500 text-sm';
                 star.textContent = '★';
                 star.title = 'Préférée du juge';
                 card.append(star);
@@ -600,12 +650,18 @@ class FragmentTool {
             const button = document.createElement('button');
             button.type = 'button';
             button.dataset.essence = essence.id;
-            button.className = 'flex items-center gap-1.5 pl-1 pr-2 py-1 rounded-full border border-border font-sans-soft text-xs data-[active=true]:ring-2 data-[active=true]:ring-foreground';
+            button.className = 'flex items-center gap-2 px-1.5 py-1 rounded-lg font-sans-soft text-xs text-left hover:bg-muted/50 data-[active=true]:bg-foreground/10 data-[active=true]:ring-1 data-[active=true]:ring-foreground';
             button.title = `${essence.name}${index < 10 ? ` (touche ${(index + 1) % 10})` : ''}`;
             const swatch = document.createElement('span');
-            swatch.className = 'w-5 h-5 rounded-full border border-border';
+            swatch.className = 'w-4 h-4 rounded-full border border-border shrink-0';
             swatch.style.backgroundColor = essence.hex;
-            button.append(swatch, document.createTextNode(essence.code));
+            const name = document.createElement('span');
+            name.className = 'truncate';
+            name.textContent = essence.name;
+            const code = document.createElement('span');
+            code.className = 'ml-auto font-mono text-[10px] text-muted-foreground';
+            code.textContent = essence.code;
+            button.append(swatch, name, code);
             button.addEventListener('click', () => this.selectEssence(essence.id));
             return button;
         }));
@@ -707,6 +763,9 @@ class FragmentTool {
         }
 
         drawGrid(this.ref('result-flat'), grid, this.essences, Math.max(2, Math.floor(512 / Math.max(grid.length, grid[0].length))));
+        drawGrid(this.ref('thumb-flat'), grid, this.essences, Math.max(1, Math.floor(96 / Math.max(grid.length, grid[0].length))));
+        const edits = this.editor.edits.size;
+        this.ref('editor-info').textContent = `Version n° ${this.selectedId} · ${edits} retouche${edits > 1 ? 's' : ''}`;
         const used = counts(grid);
         this.ref('result-info').textContent = `${used.size} essence(s) · ${grid.length * grid[0].length} morceaux`;
 
@@ -754,6 +813,7 @@ class FragmentTool {
         }
         this.objectUrls[ref] = URL.createObjectURL(blob);
         this.ref(ref).src = this.objectUrls[ref];
+        this.ref(ref.replace('result-', 'thumb-')).src = this.objectUrls[ref];
     }
 
     async downloadRender(kind) {
@@ -791,7 +851,7 @@ class FragmentTool {
         status.textContent = message;
         status.classList.toggle('hidden', !message);
         if (message) {
-            this.ref('ai-overlay-message').textContent = message;
+            this.ref('ai-progress-message').textContent = message;
         }
     }
 

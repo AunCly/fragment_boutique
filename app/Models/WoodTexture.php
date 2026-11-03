@@ -57,18 +57,4 @@ class WoodTexture extends Model
     {
         return $this->texture_path ? Storage::url($this->texture_path) : null;
     }
-
-    /** Returns the entry formatted for the React builder (matches LibraryEntry interface). */
-    public function toBuilderEntry(): array
-    {
-        return [
-            'id' => $this->slug,
-            'name' => $this->name,
-            'hex' => $this->hex,
-            'textureUrl' => $this->texture_url, // via accessor
-            'tags' => $this->tags,
-            'gridCode' => $this->grid_code,
-            'fromCloud' => true,
-        ];
-    }
 }

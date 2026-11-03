@@ -8,7 +8,7 @@
         <h1 class="font-serif text-3xl text-foreground">Essences de bois</h1>
         <p class="font-sans-soft text-sm text-muted-foreground mt-1">{{ $textures->count() }} essence{{ $textures->count() !== 1 ? 's' : '' }}</p>
     </div>
-    <a href="{{ route('admin.wood-textures.create') }}" class="px-5 py-2.5 bg-primary text-primary-foreground rounded-full font-sans-soft text-sm font-medium hover:opacity-90 transition">
+    <a href="{{ route('admin.wood-textures.create') }}" class="px-5 py-2.5 bg-primary text-background font-sans-soft text-sm uppercase hover:opacity-90 transition">
         + Ajouter
     </a>
 </div>
