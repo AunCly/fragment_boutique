@@ -30,12 +30,10 @@ class ShopifyAdminService
                 ]
             );
 
-            \Log::info('Shopify token response', ['status' => $response->status(), 'body' => $response->json()]);
-
             $token = $response->json('access_token');
 
             if (! $token) {
-                throw new \RuntimeException('Shopify token exchange failed: '.$response->body());
+                throw new \RuntimeException("Shopify token exchange failed (HTTP {$response->status()}).");
             }
 
             return $token;
@@ -43,7 +41,9 @@ class ShopifyAdminService
     }
 
     /**
-     * @param  array<int, array{type: 'variant'|'custom', variantId?: string, title?: string, price?: string|float, quantity: int}>  $items
+     * Line items are Shopify variants only, so prices always come from Shopify and never from the client.
+     *
+     * @param  array<int, array{type: 'variant', variantId: string, quantity: int}>  $items
      *
      * @throws ConnectionException
      */
@@ -51,22 +51,10 @@ class ShopifyAdminService
     {
         $token = $this->getAccessToken();
 
-        $lineItems = array_map(function (array $item): array {
-            if ($item['type'] === 'variant') {
-                $variantId = preg_replace('/.*\//', '', $item['variantId']);
-
-                return [
-                    'variant_id' => (int) $variantId,
-                    'quantity' => $item['quantity'],
-                ];
-            }
-
-            return [
-                'title' => $item['title'],
-                'price' => number_format((float) $item['price'], 2, '.', ''),
-                'quantity' => $item['quantity'],
-            ];
-        }, $items);
+        $lineItems = array_map(fn (array $item): array => [
+            'variant_id' => (int) preg_replace('/.*\//', '', $item['variantId']),
+            'quantity' => $item['quantity'],
+        ], $items);
 
         $response = Http::withHeaders([
             'X-Shopify-Access-Token' => $token,

@@ -121,11 +121,9 @@ class ShopifyController extends Controller
     {
         $validated = $request->validate([
             'items' => ['required', 'array', 'min:1'],
-            'items.*.type' => ['required', 'in:variant,custom'],
+            'items.*.type' => ['required', 'in:variant'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
-            'items.*.variantId' => ['required_if:items.*.type,variant', 'string'],
-            'items.*.title' => ['required_if:items.*.type,custom', 'string', 'max:255'],
-            'items.*.price' => ['required_if:items.*.type,custom', 'numeric', 'min:0'],
+            'items.*.variantId' => ['required', 'string'],
         ]);
 
         $invoiceUrl = $this->admin->createDraftOrder($validated['items']);

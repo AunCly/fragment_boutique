@@ -30,13 +30,13 @@ Route::post('/checkout', [ShopifyController::class, 'checkout'])->name('shop.che
 
 Route::prefix('account')->name('account.')->group(function () {
     Route::get('/login', [AccountController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AccountController::class, 'login']);
+    Route::post('/login', [AccountController::class, 'login'])->middleware('throttle:20,1');
     Route::get('/register', [AccountController::class, 'showRegister'])->name('register');
-    Route::post('/register', [AccountController::class, 'register']);
+    Route::post('/register', [AccountController::class, 'register'])->middleware('throttle:20,1');
     Route::get('/activate', [AccountController::class, 'showActivate'])->name('activate');
     Route::post('/activate', [AccountController::class, 'activate'])->middleware('throttle:10,1');
     Route::get('/password/reset', [AccountController::class, 'showForgotPassword'])->name('password.reset');
-    Route::post('/password/reset', [AccountController::class, 'sendPasswordReset']);
+    Route::post('/password/reset', [AccountController::class, 'sendPasswordReset'])->middleware('throttle:20,1');
 
     Route::middleware('shopify.customer.auth')->group(function () {
         Route::post('/logout', [AccountController::class, 'logout'])->name('logout');
@@ -51,7 +51,7 @@ Route::prefix('account')->name('account.')->group(function () {
 
 Route::prefix('fragment-admin')->name('admin.')->group(function () {
     Route::get('/login', [AdminAuthController::class, 'showLogin'])->name('login');
-    Route::post('/login', [AdminAuthController::class, 'login']);
+    Route::post('/login', [AdminAuthController::class, 'login'])->middleware('throttle:20,1');
 
     Route::middleware('admin.auth')->group(function () {
         Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');

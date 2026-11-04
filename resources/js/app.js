@@ -6,28 +6,16 @@ Alpine.data('shop', () => ({
     items: [],
     isCartOpen: false,
     isCheckingOut: false,
-    customTitle: '',
-    customPrice: '',
 
     init() {
         const saved = localStorage.getItem('fragment_cart');
         if (saved) {
-            this.items = JSON.parse(saved);
+            // Custom items are no longer sold: drop any left over in an old saved cart.
+            this.items = JSON.parse(saved).filter((item) => item.type === 'variant');
         }
         this.$watch('items', (value) => {
             localStorage.setItem('fragment_cart', JSON.stringify(value));
         }, { deep: true });
-
-        window.addEventListener('fragment:add-to-cart', (e) => {
-            this.items.push({
-                type: 'custom',
-                title: e.detail.title,
-                price: e.detail.price,
-                currency: e.detail.currency ?? 'EUR',
-                quantity: 1,
-            });
-            this.isCartOpen = true;
-        });
     },
 
     get totalItems() {
@@ -47,20 +35,6 @@ Alpine.data('shop', () => ({
         } else {
             this.items.push({ type: 'variant', quantity: 1, ...product });
         }
-        this.isCartOpen = true;
-    },
-
-    addCustom() {
-        if (!this.customTitle || !this.customPrice) return;
-        this.items.push({
-            type: 'custom',
-            title: this.customTitle,
-            price: parseFloat(this.customPrice),
-            currency: 'EUR',
-            quantity: 1,
-        });
-        this.customTitle = '';
-        this.customPrice = '';
         this.isCartOpen = true;
     },
 

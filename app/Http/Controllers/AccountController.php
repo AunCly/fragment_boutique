@@ -7,11 +7,28 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 use RuntimeException;
 
 class AccountController extends Controller
 {
+    /** Failed login attempts allowed per email and IP before the login is locked. */
+    private const MAX_LOGIN_ATTEMPTS = 5;
+
+    private const LOGIN_LOCKOUT_SECONDS = 60;
+
+    /** Account creations allowed per IP within the decay window. */
+    private const MAX_REGISTER_ATTEMPTS = 5;
+
+    private const REGISTER_DECAY_SECONDS = 600;
+
+    /** Reset emails allowed per address within the decay window (prevents mail-bombing a customer). */
+    private const MAX_PASSWORD_RESET_ATTEMPTS = 3;
+
+    private const PASSWORD_RESET_DECAY_SECONDS = 600;
+
     public function __construct(private ShopifyCustomerService $shopify) {}
 
     public function showLogin(): View|RedirectResponse
@@ -30,17 +47,24 @@ class AccountController extends Controller
             'password' => ['required', 'string'],
         ]);
 
+        $throttleKey = 'account-login:'.$this->normalizedEmail($validated['email']).'|'.$request->ip();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_LOGIN_ATTEMPTS)) {
+            return $this->tooManyAttempts($throttleKey, 'email');
+        }
+
         try {
             $tokenData = $this->shopify->createAccessToken($validated['email'], $validated['password']);
-            session([
-                'shopify_customer_token' => $tokenData['token'],
-                'shopify_customer_expires_at' => $tokenData['expiresAt'],
-            ]);
-
-            return redirect()->route('account.dashboard');
         } catch (RuntimeException $e) {
-            return back()->withInput()->withErrors(['email' => $e->getMessage()]);
+            RateLimiter::hit($throttleKey, self::LOGIN_LOCKOUT_SECONDS);
+
+            return back()->withInput($request->except('password'))->withErrors(['email' => $e->getMessage()]);
         }
+
+        RateLimiter::clear($throttleKey);
+        $this->startCustomerSession($request, $tokenData);
+
+        return redirect()->route('account.dashboard');
     }
 
     public function showRegister(): View|RedirectResponse
@@ -61,6 +85,14 @@ class AccountController extends Controller
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
 
+        $throttleKey = 'account-register:'.$request->ip();
+
+        if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_REGISTER_ATTEMPTS)) {
+            return $this->tooManyAttempts($throttleKey, 'email');
+        }
+
+        RateLimiter::hit($throttleKey, self::REGISTER_DECAY_SECONDS);
+
         try {
             $tokenData = $this->shopify->createCustomer(
                 $validated['first_name'],
@@ -68,15 +100,13 @@ class AccountController extends Controller
                 $validated['email'],
                 $validated['password'],
             );
-            session([
-                'shopify_customer_token' => $tokenData['token'],
-                'shopify_customer_expires_at' => $tokenData['expiresAt'],
-            ]);
-
-            return redirect()->route('account.dashboard');
         } catch (RuntimeException $e) {
-            return back()->withInput()->withErrors(['email' => $e->getMessage()]);
+            return back()->withInput($request->except('password', 'password_confirmation'))->withErrors(['email' => $e->getMessage()]);
         }
+
+        $this->startCustomerSession($request, $tokenData);
+
+        return redirect()->route('account.dashboard');
     }
 
     public function showActivate(Request $request): View|RedirectResponse
@@ -104,15 +134,13 @@ class AccountController extends Controller
 
         try {
             $tokenData = $this->shopify->activateCustomerByUrl($validated['activation_url'], $validated['password']);
-            session([
-                'shopify_customer_token' => $tokenData['token'],
-                'shopify_customer_expires_at' => $tokenData['expiresAt'],
-            ]);
-
-            return redirect()->route('account.dashboard');
         } catch (RuntimeException $e) {
             return back()->withErrors(['password' => $e->getMessage()]);
         }
+
+        $this->startCustomerSession($request, $tokenData);
+
+        return redirect()->route('account.dashboard');
     }
 
     public function logout(Request $request): RedirectResponse
@@ -127,7 +155,8 @@ class AccountController extends Controller
             }
         }
 
-        $request->session()->forget(['shopify_customer_token', 'shopify_customer_expires_at']);
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return redirect()->route('account.login');
     }
@@ -143,12 +172,20 @@ class AccountController extends Controller
 
     public function sendPasswordReset(Request $request): RedirectResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'email' => ['required', 'email'],
         ]);
 
+        $throttleKey = 'account-password-reset:'.$this->normalizedEmail($validated['email']);
+
+        if (RateLimiter::tooManyAttempts($throttleKey, self::MAX_PASSWORD_RESET_ATTEMPTS)) {
+            return $this->tooManyAttempts($throttleKey, 'email');
+        }
+
+        RateLimiter::hit($throttleKey, self::PASSWORD_RESET_DECAY_SECONDS);
+
         try {
-            $this->shopify->sendPasswordReset($request->email);
+            $this->shopify->sendPasswordReset($validated['email']);
         } catch (\Exception) {
             // Don't expose whether the email exists
         }
@@ -271,6 +308,34 @@ class AccountController extends Controller
         }
 
         return back()->with('success_address', 'Adresse mise à jour.');
+    }
+
+    /**
+     * Store the Shopify token in a fresh session id to prevent session fixation.
+     *
+     * @param  array{token: string, expiresAt: string}  $tokenData
+     */
+    private function startCustomerSession(Request $request, array $tokenData): void
+    {
+        $request->session()->regenerate();
+        $request->session()->put([
+            'shopify_customer_token' => $tokenData['token'],
+            'shopify_customer_expires_at' => $tokenData['expiresAt'],
+        ]);
+    }
+
+    private function normalizedEmail(string $email): string
+    {
+        return Str::transliterate(Str::lower($email));
+    }
+
+    private function tooManyAttempts(string $throttleKey, string $field): RedirectResponse
+    {
+        $seconds = RateLimiter::availableIn($throttleKey);
+
+        return back()
+            ->withInput(request()->only('email'))
+            ->withErrors([$field => "Trop de tentatives. Réessayez dans {$seconds} secondes."]);
     }
 
     private function invalidSession(): RedirectResponse
