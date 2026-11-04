@@ -62,14 +62,6 @@ jobs:
       - name: Build assets
         run: npm run build
 
-      - name: Install npm dependencies (builder)
-        run: npm ci
-        working-directory: resources/builder
-
-      - name: Build assets (builder)
-        run: npm run build
-        working-directory: resources/builder
-
       # Connexion SSH par utilisateur / mot de passe via sshpass
       - name: Installation de sshpass
         run: sudo apt-get update -qq && sudo apt-get install -y -qq sshpass
@@ -101,6 +93,8 @@ jobs:
 
           echo 'MAIL_USERNAME="${{ secrets.MAIL_USERNAME }}"' >> .env
           echo 'MAIL_PASSWORD="${{ secrets.MAIL_PASSWORD }}"' >> .env
+
+          echo 'GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"' >> .env
 
       # Suppression des caches
       - name: Nettoyage des caches
