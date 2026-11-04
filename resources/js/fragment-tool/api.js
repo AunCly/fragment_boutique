@@ -34,6 +34,21 @@ export async function postJson(url, body, signal) {
     return response.json();
 }
 
+/**
+ * Autosave request: JSON body, JSON answer.
+ */
+export async function patchJson(url, payload) {
+    const response = await fetch(url, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+        headers: { 'X-CSRF-TOKEN': csrfToken(), Accept: 'application/json', 'Content-Type': 'application/json' },
+    });
+    if (!response.ok) {
+        throw await errorFrom(response);
+    }
+    return response.json();
+}
+
 export async function postBlob(url, body, signal) {
     const response = await send(url, body, signal);
     if (!response.ok) {

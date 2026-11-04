@@ -1,10 +1,11 @@
-import { download, postBlob, postJson, postStream, ToolError } from './api.js';
+import { download, patchJson, postBlob, postJson, postStream, ToolError } from './api.js';
 import { Cropper } from './cropper.js';
 import { PixelEditor } from './editor.js';
 import { counts, drawGrid } from './grid.js';
 
 const STYLE_LABELS = { base: 'Standard', contrast: 'Contrasté', faithful: 'Fidèle', cute: 'Mignon' };
 const RENDER_DELAY_MS = 500;
+const SAVE_DELAY_MS = 800;
 
 const formatDuration = (ms) => {
     const seconds = Math.floor(ms / 1000);
@@ -35,10 +36,16 @@ class FragmentTool {
         this.renderController = null;
         this.renderTimer = null;
         this.objectUrls = {};
+        this.project = null;
+        this.saveTimers = new Map();
+        this.savesInFlight = 0;
 
         this.cropper = new Cropper(this.ref('crop-canvas'), { onChange: (crop) => this.cropChanged(crop) });
         this.editor = new PixelEditor(this.ref('editor'), {
-            onChange: () => this.scheduleRender(),
+            onChange: () => {
+                this.storeEdits();
+                this.scheduleRender();
+            },
             onHover: (cell) => this.showHover(cell),
             onPick: (id) => this.selectEssence(id),
         });
@@ -50,6 +57,10 @@ class FragmentTool {
         this.selectAiTab('refine');
         this.selectResultTab('wood');
         this.updateButtons();
+
+        if (this.config.project) {
+            this.openProject(this.config.project);
+        }
     }
 
     ref(name) {
@@ -83,7 +94,7 @@ class FragmentTool {
         this.action('change-image').addEventListener('click', () => fileInput.click());
 
         this.ref('palette').addEventListener('change', (event) => {
-            if (!this.confirmReset('Changer de palette efface les versions. Continuer ?')) {
+            if (!this.confirmReset('Changer de palette')) {
                 event.target.value = this.palette.id;
                 return;
             }
@@ -93,7 +104,7 @@ class FragmentTool {
         this.root.querySelectorAll('[data-format]').forEach((button) => {
             button.addEventListener('click', () => {
                 const id = Number(button.dataset.format);
-                if (id === this.format?.id || !this.confirmReset('Changer de format efface les versions. Continuer ?')) {
+                if (id === this.format?.id || !this.confirmReset('Changer de format')) {
                     return;
                 }
                 this.selectFormat(id);
@@ -103,7 +114,11 @@ class FragmentTool {
         this.action('generate').addEventListener('click', () => this.generate());
         this.action('stop').addEventListener('click', () => this.aiController?.abort());
         this.action('clear-versions').addEventListener('click', () => {
-            if (window.confirm('Effacer toutes les versions ?')) {
+            if (this.project) {
+                if (this.confirmReset('Repartir de zéro')) {
+                    this.clearVersions();
+                }
+            } else if (window.confirm('Effacer toutes les versions ?')) {
                 this.clearVersions();
             }
         });
@@ -114,8 +129,20 @@ class FragmentTool {
             this.updateButtons();
         });
         this.action('new-project').addEventListener('click', () => {
-            if (this.confirmReset('Recommencer efface l\'image et les versions. Continuer ?')) {
-                window.location.reload();
+            if (this.project || this.versions.length === 0 || window.confirm('Recommencer efface l\'image et les versions. Continuer ?')) {
+                window.location.href = this.config.routes.tool;
+            }
+        });
+        this.action('crop-unlock').addEventListener('click', () => {
+            if (this.confirmReset('Modifier le recadrage')) {
+                this.clearVersions();
+            }
+        });
+        this.ref('project-name').addEventListener('input', (event) => {
+            const name = event.target.value.trim();
+            if (this.project && name) {
+                this.project.name = name;
+                this.scheduleSave('project', () => this.saveProject({ name }));
             }
         });
         this.root.querySelectorAll('[data-ai-tab]').forEach((button) => {
@@ -137,7 +164,10 @@ class FragmentTool {
         });
 
         for (const name of ['motif', 'density', 'motif-essence']) {
-            this.ref(name).addEventListener('change', () => this.applyMotif());
+            this.ref(name).addEventListener('change', () => {
+                this.storeMotif();
+                this.applyMotif();
+            });
         }
 
         this.action('suggest').addEventListener('click', () => this.suggest());
@@ -153,8 +183,19 @@ class FragmentTool {
 
     /* ---------------------------------------------------------------- Setup */
 
-    confirmReset(message) {
-        return this.versions.length === 0 || window.confirm(message);
+    /**
+     * Confirms an action that drops the versions. On a saved project, the project is kept
+     * as is and the next generation creates a new one.
+     */
+    confirmReset(action) {
+        if (this.project) {
+            if (!window.confirm(`${action} crée un nouveau projet : celui-ci reste enregistré dans la liste des projets. Continuer ?`)) {
+                return false;
+            }
+            this.detachProject();
+            return true;
+        }
+        return this.versions.length === 0 || window.confirm(`${action} efface les versions. Continuer ?`);
     }
 
     selectPalette(id) {
@@ -203,25 +244,190 @@ class FragmentTool {
             this.showError('Image trop lourde.');
             return;
         }
-        if (this.file && !this.confirmReset('Changer d\'image efface les versions. Continuer ?')) {
+        if (this.file && !this.confirmReset('Changer d\'image')) {
             return;
         }
 
-        const url = URL.createObjectURL(file);
-        const image = new Image();
-        image.onload = () => {
-            this.file = file;
-            this.imageName = file.name.replace(/\.[^.]+$/, '') || 'fragment';
-            this.hasTransparency = file.type === 'image/png' && this.detectTransparency(image);
-            this.ref('background-field').classList.toggle('hidden', !this.hasTransparency);
-            this.ref('dropzone').classList.add('hidden');
-            this.ref('cropper').classList.remove('hidden');
-            this.clearVersions();
-            this.cropper.setImage(image);
-            this.hideError();
+        this.setSource(file).catch(() => {});
+    }
+
+    /**
+     * Shows the source image in the cropper, with the given crop or the default one.
+     */
+    setSource(file, crop = null) {
+        return new Promise((resolve, reject) => {
+            const image = new Image();
+            image.onload = () => {
+                this.file = file;
+                this.imageName = file.name.replace(/\.[^.]+$/, '') || 'fragment';
+                this.hasTransparency = file.type === 'image/png' && this.detectTransparency(image);
+                this.ref('background-field').classList.toggle('hidden', !this.hasTransparency);
+                this.ref('dropzone').classList.add('hidden');
+                this.ref('cropper').classList.remove('hidden');
+                this.clearVersions();
+                this.cropper.setImage(image, crop);
+                this.hideError();
+                resolve();
+            };
+            image.onerror = () => {
+                this.showError('Image illisible ou corrompue.');
+                reject(new ToolError('Image illisible ou corrompue.'));
+            };
+            image.src = URL.createObjectURL(file);
+        });
+    }
+
+    /* ---------------------------------------------------------------- Saved project */
+
+    /**
+     * Reopens a saved project: source image, crop, format, palette, versions and the
+     * chosen one with its edits and motif. Nothing is generated again.
+     */
+    async openProject(data) {
+        this.setStatus('Chargement du projet…');
+        try {
+            const response = await fetch(data.sourceUrl, { headers: { Accept: 'image/*' } });
+            if (!response.ok) {
+                throw new ToolError(`Image source du projet introuvable (erreur ${response.status}).`);
+            }
+            const blob = await response.blob();
+            const file = new File([blob], `${data.name}.${blob.type === 'image/png' ? 'png' : 'jpg'}`, { type: blob.type });
+
+            this.selectPalette(data.paletteId);
+            this.selectFormat(data.formatId);
+            await this.setSource(file, data.crop);
+            if (this.hasTransparency) {
+                this.ref('background').value = data.backgroundId;
+            }
+            this.setProject(data);
+
+            for (const version of data.versions) {
+                this.addVersion(this.versionFromServer(version));
+            }
+            this.cost = data.costUsd ?? 0;
+            this.ref('stats-cost').textContent = `${this.cost.toFixed(4)} $`;
+
+            const selected = this.versions.find((version) => version.serverId === data.selectedVersionId);
+            if (selected) {
+                this.selectVersion(selected.id, { save: false });
+            }
+            this.setStatus('');
+        } catch (error) {
+            this.handleFailure(error);
+        }
+    }
+
+    /**
+     * Follows a saved project: its URL (F5 reopens it), its name and the crop lock.
+     */
+    setProject(summary) {
+        this.project = { ...summary };
+        window.history.replaceState(null, '', summary.url);
+        this.ref('project-name').value = summary.name;
+        this.ref('project-bar').classList.remove('hidden');
+        this.setSaveStatus('Enregistré');
+        this.lockCrop(true);
+    }
+
+    /**
+     * Leaves the saved project untouched: the next generation creates a new one.
+     */
+    detachProject() {
+        this.project = null;
+        this.saveTimers.forEach((timer) => clearTimeout(timer));
+        this.saveTimers.clear();
+        window.history.replaceState(null, '', this.config.routes.tool);
+        this.ref('project-bar').classList.add('hidden');
+        this.lockCrop(false);
+    }
+
+    /** Versions depend on the crop: it is fixed while a saved project is open. */
+    lockCrop(locked) {
+        this.cropper.locked = locked;
+        this.action('crop-reset').classList.toggle('hidden', locked);
+        this.action('crop-unlock').classList.toggle('hidden', !locked);
+    }
+
+    versionFromServer(data) {
+        return {
+            grid: data.grid,
+            label: data.kind === 'refinement' ? `Raffinée (de n° ${data.parentNumber ?? '?'})` : `IA · ${STYLE_LABELS[data.style] ?? data.style}`,
+            kind: 'ai',
+            backgroundId: data.backgroundId,
+            serverId: data.id,
+            number: data.number,
+            score: data.score,
+            problems: data.problems,
+            preferred: data.preferred,
+            edits: data.edits ?? [],
+            motif: data.motif,
         };
-        image.onerror = () => this.showError('Image illisible ou corrompue.');
-        image.src = url;
+    }
+
+    /**
+     * Debounced autosave, one timer per key.
+     */
+    scheduleSave(key, save) {
+        clearTimeout(this.saveTimers.get(key));
+        this.setSaveStatus('Modifications non enregistrées…');
+        this.saveTimers.set(key, setTimeout(async () => {
+            this.saveTimers.delete(key);
+            this.savesInFlight++;
+            this.setSaveStatus('Enregistrement…');
+            try {
+                await save();
+                this.savesInFlight--;
+                if (!this.savesInFlight && !this.saveTimers.size) {
+                    this.setSaveStatus('Enregistré');
+                }
+            } catch (error) {
+                this.savesInFlight--;
+                this.setSaveStatus(`Échec de l'enregistrement : ${error.message}`, true);
+            }
+        }, SAVE_DELAY_MS));
+    }
+
+    saveProject(payload) {
+        return patchJson(this.project.updateUrl, payload);
+    }
+
+    scheduleVersionSave(version) {
+        if (!this.project || !version.serverId) {
+            return;
+        }
+        const url = this.project.versionUrl.replace('__VERSION__', version.serverId);
+        this.scheduleSave(`version-${version.serverId}`, () => patchJson(url, { edits: version.edits, motif: version.motif ?? undefined }));
+    }
+
+    setSaveStatus(message, isError = false) {
+        const status = this.ref('save-status');
+        status.textContent = message;
+        status.classList.toggle('text-red-700', isError);
+        status.classList.toggle('text-muted-foreground', !isError);
+    }
+
+    /** Keeps the editor edits on the selected version and saves them. */
+    storeEdits() {
+        const version = this.selectedVersion();
+        if (!version) {
+            return;
+        }
+        version.edits = [...this.editor.edits].map(([key, id]) => [...key.split(':').map(Number), id]);
+        this.scheduleVersionSave(version);
+    }
+
+    /** Keeps the motif settings on the selected version and saves them. */
+    storeMotif() {
+        const version = this.selectedVersion();
+        if (!version) {
+            return;
+        }
+        version.motif = {
+            motif: this.ref('motif').value,
+            density: this.ref('density').value,
+            essence_id: Number(this.ref('motif-essence').value),
+        };
+        this.scheduleVersionSave(version);
     }
 
     detectTransparency(image) {
@@ -257,8 +463,17 @@ class FragmentTool {
 
     /* ---------------------------------------------------------------- Requests */
 
+    /**
+     * Common request data. A saved project replaces the image, crop, format and palette
+     * (the server reads them from the project, even archived).
+     */
     formData({ withImage = false, backgroundId = this.backgroundId() } = {}) {
         const data = new FormData();
+        if (this.project) {
+            data.append('project_id', this.project.id);
+            data.append('background_id', backgroundId);
+            return data;
+        }
         data.append('format_id', this.format.id);
         data.append('palette_id', this.palette.id);
         data.append('background_id', backgroundId);
@@ -378,7 +593,9 @@ class FragmentTool {
 
     handleFailure(error) {
         if (error.name === 'AbortError') {
-            this.setStatus('Arrêté. Les appels déjà partis chez Google peuvent être facturés.');
+            this.setStatus(this.project && !this.isTestMode()
+                ? 'Arrêté. L\'appel se termine côté serveur et ses versions sont enregistrées : rechargez la page pour les voir.'
+                : 'Arrêté. Les appels déjà partis chez Google peuvent être facturés.');
             return;
         }
         this.setStatus('');
@@ -402,7 +619,6 @@ class FragmentTool {
         const count = Number(this.root.querySelector('input[name="ai-count"]:checked').value);
         const data = this.aiData();
         data.append('count', count);
-        data.append('hint', this.ref('hint').value.trim());
 
         const signal = this.startAi('Envoi…');
         const batch = new Map();
@@ -410,20 +626,23 @@ class FragmentTool {
 
         try {
             await postStream(this.config.routes.generate, data, (event) => {
-                if (event.type === 'stage') {
+                if (event.type === 'project') {
+                    this.setProject(event.project);
+                } else if (event.type === 'stage') {
                     this.setStatus(event.message);
                 } else if (event.type === 'warning') {
                     this.addWarning(event.message);
                 } else if (event.type === 'candidate') {
-                    batch.set(event.index, this.addVersion({
+                    batch.set(event.index, this.addVersion(event.version ? this.versionFromServer(event.version) : {
                         grid: event.grid,
                         label: `IA · ${STYLE_LABELS[event.style] ?? event.style}`,
                         kind: 'ai',
                         backgroundId,
                     }));
                 } else if (event.type === 'result') {
-                    for (const candidate of event.candidates) {
-                        const version = batch.get(candidate.index) ?? this.addVersion({
+                    event.candidates.forEach((candidate, position) => {
+                        const saved = event.versions?.[position];
+                        const version = batch.get(candidate.index) ?? this.addVersion(saved ? this.versionFromServer(saved) : {
                             grid: candidate.grid,
                             label: `IA · ${STYLE_LABELS[candidate.style] ?? candidate.style}`,
                             kind: 'ai',
@@ -432,7 +651,7 @@ class FragmentTool {
                         version.score = candidate.score;
                         version.problems = candidate.problems;
                         version.preferred = candidate.index === event.preferred;
-                    }
+                    });
                     this.addCost(event.usage);
                     this.setStatus(`${event.candidates.length} version(s) ajoutée(s).`);
                     this.renderVersions();
@@ -453,14 +672,18 @@ class FragmentTool {
         const version = this.selectedVersion();
         const data = this.aiData({ backgroundId: version.backgroundId });
         data.append('grid', JSON.stringify(version.grid));
+        if (version.serverId) {
+            data.append('version_id', version.serverId);
+        }
         data.append('remarks', this.ref('remarks').value);
-        data.append('hint', this.ref('hint').value.trim());
 
         const signal = this.startAi('Raffinement…');
 
         try {
             await postStream(this.config.routes.refine, data, (event) => {
-                if (event.type === 'stage') {
+                if (event.type === 'project') {
+                    this.setProject(event.project);
+                } else if (event.type === 'stage') {
                     this.setStatus(event.message);
                 } else if (event.type === 'warning') {
                     this.addWarning(event.message);
@@ -470,9 +693,9 @@ class FragmentTool {
                         this.setStatus('La grille n\'a pas changé : aucune version ajoutée.');
                         return;
                     }
-                    const refined = this.addVersion({
+                    const refined = this.addVersion(event.version ? this.versionFromServer(event.version) : {
                         grid: event.grid,
-                        label: `Raffinée (de n° ${version.id})`,
+                        label: `Raffinée (de n° ${version.number})`,
                         kind: 'ai',
                         backgroundId: version.backgroundId,
                     });
@@ -497,11 +720,17 @@ class FragmentTool {
         const version = this.selectedVersion();
         const data = this.aiData({ backgroundId: version.backgroundId });
         data.append('grid', JSON.stringify(this.editor.current()));
+        if (version.serverId) {
+            data.append('version_id', version.serverId);
+        }
 
         const signal = this.startAi('Demande de suggestions…');
 
         try {
             const result = await postJson(this.config.routes.suggest, data, signal);
+            if (result.project) {
+                this.setProject(result.project);
+            }
             this.addCost(result.usage);
             this.suggestions = result.suggestions;
             this.renderSuggestions();
@@ -515,8 +744,26 @@ class FragmentTool {
 
     /* ---------------------------------------------------------------- Versions */
 
-    addVersion({ grid, label, kind, backgroundId }) {
-        const version = { id: this.nextVersionId++, grid, label, kind, backgroundId, score: null, problems: [], preferred: false };
+    /**
+     * Saved versions carry their server id and number; test-mode ones are numbered T1, T2…
+     * and stay in the page only.
+     */
+    addVersion({ grid, label, kind, backgroundId, serverId = null, number = null, score = null, problems = [], preferred = false, edits = [], motif = null }) {
+        const id = this.nextVersionId++;
+        const version = {
+            id,
+            serverId,
+            number: number ?? `T${id}`,
+            grid,
+            label: serverId ? label : `${label} · test`,
+            kind,
+            backgroundId,
+            score,
+            problems,
+            preferred,
+            edits,
+            motif,
+        };
         this.versions.push(version);
         this.renderVersions();
         return version;
@@ -526,17 +773,24 @@ class FragmentTool {
         return this.versions.find((version) => version.id === this.selectedId) ?? null;
     }
 
-    selectVersion(id) {
+    /**
+     * Each version keeps its own edits and motif: switching loses nothing.
+     */
+    selectVersion(id, { save = true } = {}) {
         if (id === this.selectedId) {
-            return;
-        }
-        if (this.editor.hasEdits() && !window.confirm('Changer de version efface les retouches. Continuer ?')) {
             return;
         }
 
         this.selectedId = id;
         const version = this.selectedVersion();
         this.editor.reset();
+        this.editor.edits = new Map(version.edits.map(([row, col, essenceId]) => [`${row}:${col}`, essenceId]));
+        this.ref('motif').value = version.motif?.motif ?? 'none';
+        this.ref('density').value = version.motif?.density ?? this.ref('density').value;
+        this.ref('motif-essence').value = version.motif?.essence_id ?? this.palette.defaultMotifId;
+        if (save && this.project && version.serverId) {
+            this.scheduleSave('project-version', () => this.saveProject({ selected_version_id: version.serverId }));
+        }
         this.suggestions = [];
         this.renderSuggestions();
         this.ref('remarks').value = version.problems.join('\n');
@@ -584,7 +838,7 @@ class FragmentTool {
             header.className = 'flex items-center justify-between mt-1 font-sans-soft text-[11px]';
             const number = document.createElement('span');
             number.className = 'text-foreground';
-            number.textContent = `n° ${version.id}`;
+            number.textContent = `n° ${version.number}`;
             const score = document.createElement('span');
             score.className = 'font-mono text-muted-foreground';
             score.textContent = version.score !== null ? `${version.score}/10` : '–';
@@ -765,7 +1019,7 @@ class FragmentTool {
         drawGrid(this.ref('result-flat'), grid, this.essences, Math.max(2, Math.floor(512 / Math.max(grid.length, grid[0].length))));
         drawGrid(this.ref('thumb-flat'), grid, this.essences, Math.max(1, Math.floor(96 / Math.max(grid.length, grid[0].length))));
         const edits = this.editor.edits.size;
-        this.ref('editor-info').textContent = `Version n° ${this.selectedId} · ${edits} retouche${edits > 1 ? 's' : ''}`;
+        this.ref('editor-info').textContent = `Version n° ${this.selectedVersion()?.number} · ${edits} retouche${edits > 1 ? 's' : ''}`;
         const used = counts(grid);
         this.ref('result-info').textContent = `${used.size} essence(s) · ${grid.length * grid[0].length} morceaux`;
 
@@ -781,7 +1035,7 @@ class FragmentTool {
         const data = this.formData({ backgroundId: version?.backgroundId ?? this.backgroundId() });
         data.append('grid', JSON.stringify(grid));
         data.append('kind', kind);
-        data.append('name', this.imageName);
+        data.append('name', this.project?.name ?? this.imageName);
         if (version?.kind === 'ai') {
             data.append('model', this.config.ai.imageModel);
         }
@@ -812,8 +1066,12 @@ class FragmentTool {
             URL.revokeObjectURL(this.objectUrls[ref]);
         }
         this.objectUrls[ref] = URL.createObjectURL(blob);
-        this.ref(ref).src = this.objectUrls[ref];
-        this.ref(ref.replace('result-', 'thumb-')).src = this.objectUrls[ref];
+        // The images stay hidden behind a placeholder until the first render arrives.
+        for (const name of [ref, ref.replace('result-', 'thumb-')]) {
+            this.ref(name).src = this.objectUrls[ref];
+            this.ref(name).classList.remove('hidden');
+            this.ref(`${name}-placeholder`).classList.add('hidden');
+        }
     }
 
     async downloadRender(kind) {

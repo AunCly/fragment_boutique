@@ -25,7 +25,7 @@ En V1, l'outil tourne en local pour un seul utilisateur. Il est conçu dès le d
 - Palette des essences dans un fichier de configuration.
 
 ### Reporté (versions ultérieures)
-- Historique / galerie des créations.
+- Galerie des créations (l'historique des projets est traité en V2, voir §13).
 - Hébergement serveur pour l'équipe et authentification (architecture préparée dès la V1).
 - Export PDF, autres formats que 16×16 / 32×32, rotation / miroir, exclusion d'essences.
 - Le tramage (Floyd–Steinberg, Bayer) a été essayé puis retiré : à 16×16 / 32×32, il produit un bruit peu lisible une fois réalisé en bois.
@@ -64,7 +64,7 @@ Validation au chargement : ids uniques, hex valides (`#rrggbb`), au moins 2 esse
 1. Lancer l'outil (`uv run --env-file .env fragmenttool`) → le serveur démarre et ouvre le navigateur sur `http://localhost:8000`. L'ouverture automatique du navigateur n'a lieu qu'en mode local. Une fois hébergé, l'outil s'utilise simplement via son URL.
 2. **Importer** une image (glisser-déposer ou sélecteur de fichier).
 3. **Recadrer** : un cadre carré se superpose à l'image ; on le déplace et on le redimensionne pour choisir la zone conservée. Par défaut : le plus grand carré centré (bouton « Recadrage par défaut » pour y revenir, « Changer d'image » pour repartir d'une autre image). Choisir le format (16×16 / 32×32) et, si l'image a de la transparence, l'essence de fond.
-4. **Générer** : 1, 2 ou 4 images par lancement, avec une consigne facultative. Chaque lancement **ajoute** des versions à la liste : on peut relancer autant qu'on veut.
+4. **Générer** : 1, 2, 4, 6 ou 8 images par lancement (l'interface ne propose plus de consigne ; l'API l'accepte toujours). Chaque lancement **ajoute** des versions à la liste : on peut relancer autant qu'on veut.
 5. **Choisir** : l'utilisateur est le juge. Chaque version affiche l'avis de Gemini (note sur 10, ★ sur sa préférée, problèmes relevés au survol), à titre indicatif. Un clic sélectionne la version à garder. « Tout effacer » vide la liste (avec confirmation).
 6. **Raffiner** (facultatif) : Gemini corrige la version choisie selon des remarques (pré-remplies avec l'avis du juge, modifiables). Le résultat s'ajoute comme nouvelle version, qu'on garde ou non.
 7. **Finitions** : motifs de fond, retouches pixel par pixel (pinceau, remplissage, pipette, annuler / rétablir), suggestions de Gemini à cocher.
@@ -148,7 +148,7 @@ Un modèle génératif réinterprète l'image comme le ferait un illustrateur : 
 
 | Étape | Déclenchement | Modèle (par défaut) | Appels |
 |-------|---------------|---------------------|--------|
-| **Génération** (`run_generation`) : K images en parallèle à partir de la zone recadrée. Dès 2 images, chaque candidat reçoit une variante de style (consigne de base, contraste marqué, fidélité à l'original, style « mignon ») pour diversifier le lot | bouton « Générer » (1, 2 ou 4 images, consigne facultative de 500 caractères) | `gemini-nano-banana-2.1` | K |
+| **Génération** (`run_generation`) : K images en parallèle à partir de la zone recadrée. Dès 2 images, chaque candidat reçoit une variante de style (consigne de base, contraste marqué, fidélité à l'original, style « mignon ») pour diversifier le lot ; au-delà de 4 images, les styles sont repris dans le même ordre | bouton « Générer » (1, 2, 4, 6 ou 8 images) | `gemini-nano-banana-2.1` | K |
 | **Projection** : `reduce_ai` (détection de grille, cases carrées, logique « Contours » si le modèle a dessiné plus fin), association CIEDE2000, puis `frame_subject` | automatique | notre code | 0 |
 | **Avis du juge** : note 0–10, problèmes concrets (au plus 4), préférée du lot | automatique après chaque génération et chaque raffinement | `gemini-3.1-flash-lite` | 1 |
 | **Raffinement** (`run_refine`) : la version choisie (agrandie) est renvoyée au modèle d'image avec l'original et les remarques de l'utilisateur, puis re-projetée et notée. Le résultat est une **nouvelle version** ; si la grille n'a pas changé, rien n'est ajouté | bouton « Raffiner » | image + juge | 2 |
@@ -167,7 +167,7 @@ Coût indicatif : ≈ 0,08 $ par image générée ou raffinée, quelques milliè
 #### API et état
 - `POST /api/ai/generate` (image + recadrage + N + essence de fond + `count` + `hint`) et `POST /api/ai/refine` (mêmes champs + `grid` + `remarks`, une remarque par ligne) répondent en **flux NDJSON**, un événement JSON par ligne : `stage` (progression), `warning`, `candidate` (génération : grille projetée de chaque image, au fil de l'eau), puis `result` ou `error`. Génération : `result` = candidats notés + préférée du juge + consommation. Raffinement : `result` = grille, note, problèmes, `unchanged`, consommation.
 - `POST /api/ai/suggest` (image + recadrage + N + essence de fond + `grid`) répond en JSON : suggestions + consommation (502 si Gemini échoue).
-- **Sans état** : le navigateur garde les versions, la version choisie, les motifs et les retouches, et renvoie la grille voulue à chaque appel ; le serveur la valide (`parse_grid` : carrée, format supporté, essences connues). Changer d'image ou de format efface les versions (avec confirmation). Un changement de recadrage s'applique aux appels suivants (raffinement, suggestions, nouvelles générations).
+- **Sans état** : le navigateur garde les versions, la version choisie, les motifs et les retouches, et renvoie la grille voulue à chaque appel ; le serveur la valide (`parse_grid` : carrée, format supporté, essences connues). Changer d'image ou de format efface les versions (avec confirmation). Un changement de recadrage s'applique aux appels suivants (raffinement, suggestions, nouvelles générations). *En V2, les projets sont enregistrés côté serveur : voir §13.*
 
 #### Finitions
 - **Motifs de fond** (`fragmenttool/motifs.py`, `POST /api/motifs`) : pour un fond moins uni, l'utilisateur choisit un motif (aucun ; semés : points, petites étoiles en croix de 5 cases, confettis de formes variées, cœurs 5×4, rosaces, losanges évidés et flocons 5×5 ; décors : diagonales, chevrons en zigzag, coins, cadre perlé ou plein), une densité (faible, moyenne) et une essence (Poirier #d19f84 par défaut, `DEFAULT_MOTIF_ESSENCE_ID`). Ils sont posés **par le code, jamais par l'IA** : gratuits, réglables à tout moment, de façon déterministe (graine fixe). Seul le fond relié au bord est concerné, avec une case de marge autour du sujet et de son liseré. En 16×16, il reste peu de place : les dessins de 5×5 n'y tiennent généralement pas (aucun n'est posé), les points, confettis, coins et le cadre y sont les plus utiles.
@@ -309,7 +309,7 @@ L'objectif est qu'en V1, passer du local au serveur ne demande que du déploieme
 - Pas de CORS : le front et l'API sont servis depuis la même origine.
 
 ### 9.5 Évolutions prévues
-- **Historique / galerie** : il nécessitera un stockage partagé (SQLite ou Postgres pour les métadonnées, stockage objet pour les images) et une notion d'utilisateur. Ce n'est pas implémenté en V1, mais le pipeline produit déjà une matrice d'ids sérialisable (JSON), qui pourra être stockée telle quelle.
+- **Historique / galerie** : il nécessitera un stockage partagé (SQLite ou Postgres pour les métadonnées, stockage objet pour les images) et une notion d'utilisateur. Ce n'est pas implémenté en V1, mais le pipeline produit déjà une matrice d'ids sérialisable (JSON), qui pourra être stockée telle quelle. *Spécifié en V2 : voir §13.*
 
 ## 10. Gestion des erreurs
 - Fichier non supporté ou corrompu : message dans l'interface, pas de crash.
@@ -336,3 +336,65 @@ L'objectif est qu'en V1, passer du local au serveur ne demande que du déploieme
 - [ ] L'image Docker démarre en mode `server`, répond sur `/health` et fonctionne sous un sous-chemin.
 - [ ] Deux utilisateurs qui travaillent en même temps n'interfèrent pas (aucun état partagé côté serveur).
 - [ ] Une image trop grande, ou un fichier qui n'est pas une image, est refusé proprement.
+
+## 13. Projets sauvegardés (V2)
+
+### 13.1 Objectif
+Tout ce qui est généré par l'IA est enregistré côté serveur : un F5 réaffiche le travail sans repayer de génération, et l'on peut rouvrir un projet des jours plus tard pour l'améliorer. Rien n'est jamais supprimé automatiquement.
+
+### 13.2 Notion de projet
+- Un **projet** = une image source + un recadrage + un format + une palette.
+- Les projets sont **partagés entre tous les admins** (on note seulement qui l'a créé et qui a lancé chaque appel IA).
+- Le projet est créé à la **première génération réelle**. Avant, l'outil fonctionne comme aujourd'hui (rien n'est enregistré).
+- Tant qu'aucune version n'existe, recadrage, format et palette se changent librement. Ensuite, ils sont **figés** : les modifier affiche un avertissement puis crée un **nouveau projet vide** avec la même image source et les nouveaux réglages. L'ancien projet reste intact.
+- **Mode test** : rien n'est enregistré (ni projet, ni version, ni appel). L'outil reste sans état, comme en V1.
+
+### 13.3 Données enregistrées
+- **Projet** : nom (par défaut le nom du fichier), image source (disque privé), recadrage, format, palette, essence de fond, indice, version choisie, coût cumulé, auteur, dates.
+- **Appel IA** (génération, raffinement, suggestions) : auteur, paramètres envoyés (nombre d'images, indice, remarques), statut (réussi, partiel, échoué, interrompu), consommation et coût. Les appels échoués sont enregistrés aussi : ils sont facturés.
+- **Version** : appel IA d'origine, version parente (pour un raffinement), style, grille (JSON), essence de fond, note et problèmes du juge, préférée, **image brute renvoyée par Gemini** (PNG sur disque privé).
+- **État de travail de chaque version** : retouches case par case, motif (type, densité, essence). Chaque version garde les siens : passer d'une version à l'autre ne perd plus rien.
+- **Suggestions** du juge, rattachées à la version et à l'appel qui les a produites.
+- Non conservés : l'historique d'annulation de l'éditeur (perdu au rechargement), les exports PNG / ZIP (recalculés à la demande).
+
+### 13.4 Sauvegarde automatique
+- Chaque version est enregistrée **dès son arrivée** (événement `candidate`) ; note et problèmes sont complétés à l'événement `result`.
+- Le serveur termine et enregistre l'appel même si le navigateur coupe (F5, onglet fermé, bouton « Arrêter ») : ces appels sont payés de toute façon. Les versions apparaissent à la réouverture du projet.
+- Retouches, motif, version choisie, nom : enregistrés automatiquement peu après le dernier changement, avec un indicateur « Enregistrement… / Enregistré ».
+- Chaque projet a sa propre URL (`/fragment-admin/outil/projets/{id}`) : un F5 recharge l'image, les versions, la version choisie, ses retouches et son motif.
+- Les appels IA d'un projet n'envoient plus l'image : le serveur la relit depuis le projet.
+- Deux admins sur le même projet : la dernière sauvegarde l'emporte (pas de verrou).
+
+### 13.5 Liste des projets
+- Page listant les projets, du plus récent au plus ancien, paginée.
+- Pour chaque projet : miniature de l'image source (JPEG de 320 px créé à l'enregistrement), miniature en aplats du résultat final (version choisie + motif + retouches, rendue par le serveur), nom, date, palette, format, nombre de versions, coût.
+- Actions : ouvrir, supprimer (manuel uniquement, avec confirmation ; supprime aussi les fichiers). Le renommage se fait dans l'outil, en tête de page.
+
+### 13.6 Palettes, essences et formats utilisés
+- Un élément est **utilisé** dès qu'un projet y fait référence.
+- Un élément utilisé **ne peut pas être supprimé** : le bouton « Supprimer » devient « Archiver » (`is_active = false` ; pour un format, `is_tool_enabled` passe aussi à faux). Une essence est utilisée dès qu'elle appartient à une palette utilisée.
+- Archivé : absent de l'outil pour les nouveaux projets, mais les projets existants s'ouvrent, s'affichent, se retouchent, se génèrent et s'exportent normalement.
+- **Retirer une essence** d'une palette utilisée est interdit (depuis la palette comme depuis l'essence), avec un message invitant à **dupliquer la palette** (nouvelle action dans l'admin). Ajouter une essence reste permis.
+- Changer la couleur ou la texture d'une essence reste permis : le rendu des anciens projets suit.
+
+### 13.7 Hors périmètre
+- Reprojection des images brutes vers un autre format ou une autre palette (les images sont gardées pour plus tard).
+- Purge automatique, publication dans la galerie, recherche et filtres dans la liste.
+
+### 13.8 Tests (sans appel à Gemini, client simulé)
+- Création du projet à la première génération ; aucun enregistrement en mode test.
+- Versions enregistrées au fil du flux ; appel interrompu ou partiellement échoué : versions déjà reçues conservées, statut et coût enregistrés.
+- Raffinement : version parente, remarques et indice historisés. Suggestions historisées.
+- Sauvegarde et relecture des retouches et du motif par version, de la version choisie et du nom.
+- Recadrage, format ou palette figés après la première version ; création d'un nouveau projet.
+- Liste des projets ; suppression d'un projet et de ses fichiers.
+- Suppression refusée d'une palette, d'une essence ou d'un format utilisé ; archivage ; retrait d'essence refusé ; duplication de palette ; projet ouvert avec une palette archivée.
+- Accès réservé aux admins.
+
+### 13.9 Critères d'acceptation
+- [ ] Après une génération, un F5 réaffiche toutes les versions, la version choisie, ses retouches et son motif, sans nouvel appel IA.
+- [ ] Un projet créé des jours plus tôt se rouvre depuis la liste et peut être raffiné, retouché et exporté.
+- [ ] Une génération interrompue conserve les versions déjà reçues.
+- [ ] Changer le recadrage, le format ou la palette d'un projet qui a des versions crée un nouveau projet après avertissement.
+- [ ] Le mode test n'enregistre rien.
+- [ ] Une palette, une essence ou un format utilisé ne peut être qu'archivé, et les projets qui l'utilisent fonctionnent toujours.

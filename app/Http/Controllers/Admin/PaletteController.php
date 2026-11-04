@@ -7,13 +7,14 @@ use App\Models\Palette;
 use App\Models\WoodTexture;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class PaletteController extends Controller
 {
     public function index(): View
     {
-        $palettes = Palette::with('woodTextures')->ordered()->get();
+        $palettes = Palette::with('woodTextures')->withExists('projects')->ordered()->get();
 
         return view('admin.tool.palettes.index', compact('palettes'));
     }
@@ -52,6 +53,13 @@ class PaletteController extends Controller
     {
         $validated = $this->validatePalette($request);
 
+        $removed = array_diff($palette->woodTextures()->pluck('wood_textures.id')->all(), $validated['wood_texture_ids']);
+        if ($removed !== [] && $palette->isUsedByProjects()) {
+            throw ValidationException::withMessages([
+                'wood_texture_ids' => 'Cette palette est utilisée par des projets de l\'outil : on ne peut plus lui retirer d\'essence. Dupliquez-la pour en créer une variante.',
+            ]);
+        }
+
         $palette->update([
             ...collect($validated)->except('wood_texture_ids')->all(),
             'is_active' => $request->boolean('is_active'),
@@ -64,9 +72,36 @@ class PaletteController extends Controller
 
     public function destroy(Palette $palette): RedirectResponse
     {
+        if ($palette->isUsedByProjects()) {
+            return redirect()->route('admin.palettes.index')->with('error', 'Cette palette est utilisée par des projets de l\'outil : archivez-la plutôt.');
+        }
+
         $palette->delete();
 
         return redirect()->route('admin.palettes.index')->with('success', 'Palette supprimée.');
+    }
+
+    /**
+     * Hidden from new projects; the projects that use it keep working.
+     */
+    public function archive(Palette $palette): RedirectResponse
+    {
+        $palette->update(['is_active' => false]);
+
+        return redirect()->route('admin.palettes.index')->with('success', 'Palette archivée.');
+    }
+
+    /**
+     * Copy with the same essences, to change a palette already used by projects.
+     */
+    public function duplicate(Palette $palette): RedirectResponse
+    {
+        $copy = $palette->replicate();
+        $copy->name = mb_substr("{$palette->name} (copie)", 0, 100);
+        $copy->save();
+        $copy->woodTextures()->sync($palette->woodTextures()->pluck('wood_textures.id'));
+
+        return redirect()->route('admin.palettes.edit', $copy)->with('success', 'Palette dupliquée.');
     }
 
     /**

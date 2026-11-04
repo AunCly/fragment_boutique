@@ -31,7 +31,13 @@
     <script type="application/json" data-ref="config">@json($config)</script>
 
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <h1 class="font-serif text-2xl text-foreground">Outil Fragment</h1>
+        <div class="flex flex-wrap items-center gap-3 min-w-0">
+            <h1 class="font-serif text-2xl text-foreground">Outil Fragment</h1>
+            <div data-ref="project-bar" class="hidden flex items-center gap-2 min-w-0">
+                <input type="text" data-ref="project-name" maxlength="120" class="w-56 px-2.5 py-1 bg-background border border-border rounded-lg font-sans-soft text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-foreground transition" aria-label="Nom du projet">
+                <span data-ref="save-status" class="font-sans-soft text-[11px] text-muted-foreground whitespace-nowrap"></span>
+            </div>
+        </div>
 
         {{-- Progress through the flow --}}
         <ol class="flex flex-wrap items-center gap-1 font-sans-soft text-xs">
@@ -52,10 +58,11 @@
 
         <div class="flex items-center gap-3">
             <label class="flex items-center gap-1.5 font-sans-soft text-xs cursor-pointer" title="Aucun appel à Gemini, gratuit">
-                <input type="checkbox" data-ref="test-mode" class="peer sr-only">
+                <input type="checkbox" data-ref="test-mode" class="peer sr-only" @checked($config['ai']['testModeByDefault'])>
                 <span class="relative inline-block w-8 h-4 rounded-full bg-border peer-checked:bg-primary transition after:absolute after:left-0.5 after:top-0.5 after:w-3 after:h-3 after:rounded-full after:bg-card after:transition peer-checked:after:translate-x-4"></span>
                 Mode test
             </label>
+            <a href="{{ $config['routes']['projects'] }}" class="{{ $smallButton }}">Projets</a>
             <button type="button" class="{{ $smallButton }}" data-action="new-project">Nouveau projet</button>
         </div>
     </div>
@@ -66,25 +73,6 @@
 
         {{-- ============================================================ Left: source & generation --}}
         <aside class="space-y-3 lg:sticky lg:top-20">
-            <section class="{{ $panel }} p-3 space-y-2">
-                <div class="flex items-center justify-between">
-                    <p class="{{ $heading }}">Source</p>
-                    <button type="button" class="font-sans-soft text-xs text-muted-foreground hover:text-foreground underline underline-offset-2" data-action="change-image">Changer</button>
-                </div>
-                <label data-ref="dropzone" class="flex flex-col items-center justify-center gap-1 aspect-square border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/40 transition text-center px-3">
-                    <span class="font-sans-soft text-xs text-foreground">Glisser une image ici ou cliquer pour choisir</span>
-                    <span class="font-sans-soft text-[11px] text-muted-foreground">PNG ou JPG, {{ intdiv($config['maxUploadKb'], 1024) }} Mo maximum</span>
-                    <input type="file" accept="image/png,image/jpeg" class="sr-only" data-ref="file">
-                </label>
-                <div data-ref="cropper" class="hidden space-y-1.5">
-                    <div class="relative inline-block max-w-full select-none touch-none">
-                        <canvas data-ref="crop-canvas" class="block max-w-full rounded-lg"></canvas>
-                    </div>
-                    <p data-ref="crop-info" class="font-sans-soft text-[11px] text-muted-foreground"></p>
-                    <button type="button" class="font-sans-soft text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2" data-action="crop-reset">Recadrage par défaut</button>
-                </div>
-            </section>
-
             <section class="{{ $panel }} p-3 space-y-3">
                 <div class="space-y-1.5">
                     <p class="{{ $heading }}">Palette</p>
@@ -124,22 +112,42 @@
 
             <section class="{{ $panel }} p-3 space-y-2">
                 <div class="flex items-center justify-between">
-                    <p class="{{ $heading }}">Redessin IA</p>
-                    <div class="flex border border-border overflow-hidden font-sans-soft text-xs">
-                        @foreach ($config['ai']['counts'] as $count)
-                            <label class="cursor-pointer">
-                                <input type="radio" name="ai-count" value="{{ $count }}" class="peer sr-only" @checked($loop->first)>
-                                <span @class(['inline-block px-2.5 py-0.5 peer-checked:bg-foreground peer-checked:text-background', 'border-l border-border' => ! $loop->first])>{{ $count }}</span>
-                            </label>
-                        @endforeach
-                    </div>
+                    <p class="{{ $heading }}">Source</p>
+                    <button type="button" class="font-sans-soft text-xs text-muted-foreground hover:text-foreground underline underline-offset-2" data-action="change-image">Changer</button>
                 </div>
+                <label data-ref="dropzone" class="flex flex-col items-center justify-center gap-1 aspect-square border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/40 transition text-center px-3">
+                    <span class="font-sans-soft text-xs text-foreground">Glisser une image ici ou cliquer pour choisir</span>
+                    <span class="font-sans-soft text-[11px] text-muted-foreground">PNG ou JPG, {{ intdiv($config['maxUploadKb'], 1024) }} Mo maximum</span>
+                    <input type="file" accept="image/png,image/jpeg" class="sr-only" data-ref="file">
+                </label>
+                <div data-ref="cropper" class="hidden space-y-1.5">
+                    <div class="relative inline-block max-w-full select-none touch-none">
+                        <canvas data-ref="crop-canvas" class="block max-w-full rounded-lg"></canvas>
+                    </div>
+                    <p data-ref="crop-info" class="font-sans-soft text-[11px] text-muted-foreground"></p>
+                    <button type="button" class="font-sans-soft text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2" data-action="crop-reset">Recadrage par défaut</button>
+                    <button type="button" class="hidden font-sans-soft text-[11px] text-muted-foreground hover:text-foreground underline underline-offset-2" data-action="crop-unlock" title="Les versions dépendent du recadrage : le modifier crée un nouveau projet">Modifier le recadrage (nouveau projet)</button>
+                </div>
+            </section>
+
+            <section class="{{ $panel }} p-3 space-y-2">
+                <p class="{{ $heading }}">Redessin IA</p>
                 @unless ($config['ai']['enabled'])
                     <p class="font-sans-soft text-[11px] text-muted-foreground">
                         Redessin IA désactivé (pas de clé <code class="font-mono">GEMINI_API_KEY</code>) : seul le mode test est disponible.
                     </p>
                 @endunless
-                <textarea data-ref="hint" rows="2" maxlength="{{ $config['ai']['hintMaxLength'] }}" class="{{ $field }} resize-none" placeholder="Consigne facultative (ex. : garder le chapeau rouge)"></textarea>
+                <div class="space-y-1">
+                    <p class="font-sans-soft text-[11px] text-muted-foreground">Nombre de dessins générés</p>
+                    <div class="flex border border-border overflow-hidden font-sans-soft text-xs">
+                        @foreach ($config['ai']['counts'] as $count)
+                            <label class="flex-1 cursor-pointer">
+                                <input type="radio" name="ai-count" value="{{ $count }}" class="peer sr-only" @checked($loop->first)>
+                                <span @class(['block text-center py-1 peer-checked:bg-foreground peer-checked:text-background', 'border-l border-border' => ! $loop->first])>{{ $count }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                </div>
                 <button type="button" class="w-full px-4 py-2 bg-primary text-background font-sans-soft text-sm uppercase hover:opacity-90 transition disabled:opacity-40 disabled:cursor-not-allowed" data-action="generate" disabled>Générer</button>
                 <p data-ref="status" class="hidden font-sans-soft text-[11px] text-muted-foreground text-center"></p>
                 <ul data-ref="warnings" class="space-y-1 font-sans-soft text-[11px] text-amber-700"></ul>
@@ -246,14 +254,14 @@
                     <button type="button" data-result-tab="plan" class="{{ $tab }}">Plan</button>
                 </div>
                 <div class="p-3 space-y-2">
-                    <div data-result-panel="wood"><img data-ref="result-wood" alt="Rendu bois" class="w-full h-auto rounded-md bg-muted"></div>
+                    <div data-result-panel="wood"><div data-ref="result-wood-placeholder" class="aspect-square rounded-md bg-muted animate-pulse flex items-center justify-center font-sans-soft text-xs text-muted-foreground">Rendu bois en cours…</div><img data-ref="result-wood" alt="Rendu bois" class="hidden w-full h-auto rounded-md bg-muted"></div>
                     <div data-result-panel="flat" class="hidden"><canvas data-ref="result-flat" class="w-full h-auto rounded-md [image-rendering:pixelated]"></canvas></div>
-                    <div data-result-panel="plan" class="hidden"><img data-ref="result-plan" alt="Plan de montage" class="w-full h-auto rounded-md bg-white"></div>
+                    <div data-result-panel="plan" class="hidden"><div data-ref="result-plan-placeholder" class="aspect-square rounded-md bg-muted animate-pulse flex items-center justify-center font-sans-soft text-xs text-muted-foreground">Plan de montage en cours…</div><img data-ref="result-plan" alt="Plan de montage" class="hidden w-full h-auto rounded-md bg-white"></div>
 
                     <div class="grid grid-cols-3 gap-1.5">
-                        <button type="button" data-result-tab="wood" class="rounded-md border border-border p-1 data-[active=true]:border-foreground"><img data-ref="thumb-wood" alt="" class="w-full aspect-square object-cover rounded-sm bg-muted"></button>
+                        <button type="button" data-result-tab="wood" class="rounded-md border border-border p-1 data-[active=true]:border-foreground"><span data-ref="thumb-wood-placeholder" class="block w-full aspect-square rounded-sm bg-muted animate-pulse"></span><img data-ref="thumb-wood" alt="" class="hidden w-full aspect-square object-cover rounded-sm bg-muted"></button>
                         <button type="button" data-result-tab="flat" class="rounded-md border border-border p-1 data-[active=true]:border-foreground"><canvas data-ref="thumb-flat" class="w-full aspect-square rounded-sm [image-rendering:pixelated]"></canvas></button>
-                        <button type="button" data-result-tab="plan" class="rounded-md border border-border p-1 data-[active=true]:border-foreground"><img data-ref="thumb-plan" alt="" class="w-full aspect-square object-cover object-top rounded-sm bg-white"></button>
+                        <button type="button" data-result-tab="plan" class="rounded-md border border-border p-1 data-[active=true]:border-foreground"><span data-ref="thumb-plan-placeholder" class="block w-full aspect-square rounded-sm bg-muted animate-pulse"></span><img data-ref="thumb-plan" alt="" class="hidden w-full aspect-square object-cover object-top rounded-sm bg-white"></button>
                     </div>
                     <p data-ref="missing-textures" class="font-sans-soft text-[11px] text-muted-foreground"></p>
 
@@ -279,7 +287,7 @@
                     <button type="button" class="px-2 py-0.5 border border-background/30 hover:bg-background/10 transition" data-action="stop">Arrêter</button>
                 </span>
             </span>
-            <span data-ref="stats-mode" class="hidden"><span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Mode test</span></span>
+            <span data-ref="stats-mode" @class(['hidden' => ! $config['ai']['testModeByDefault']])><span class="inline-flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Mode test</span></span>
             <span><span class="opacity-60">Modèle</span> <span data-ref="stats-models" class="font-mono">{{ $config['ai']['imageModel'] }}</span></span>
             <span><span class="opacity-60">Coût</span> <span data-ref="stats-cost" class="font-mono">0.0000 $</span></span>
             <span><span class="opacity-60">Dernière exécution</span> <span data-ref="stats-last" class="font-mono tabular-nums">–</span></span>

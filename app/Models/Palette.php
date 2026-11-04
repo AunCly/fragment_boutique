@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Palette extends Model
 {
@@ -37,6 +38,20 @@ class Palette extends Model
         return $this->belongsToMany(WoodTexture::class)
             ->orderBy('wood_textures.sort_order')
             ->orderBy('wood_textures.id');
+    }
+
+    /** @return HasMany<FragmentProject, $this> */
+    public function projects(): HasMany
+    {
+        return $this->hasMany(FragmentProject::class);
+    }
+
+    /**
+     * A palette used by a saved project can only be archived, and keeps its essences.
+     */
+    public function isUsedByProjects(): bool
+    {
+        return $this->projects()->exists();
     }
 
     public function scopeActive(Builder $query): void

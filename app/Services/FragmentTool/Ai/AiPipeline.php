@@ -39,6 +39,8 @@ class AiPipeline
      * Generates $count images in parallel, projects each one as soon as it arrives,
      * then asks the judge for its review.
      *
+     * Candidate events carry the model image bytes in `raw_image` (never sent to the browser).
+     *
      * @param  callable(array<string, mixed>): void  $emit  receives stage, warning, candidate, result and error events
      */
     public function generate(
@@ -77,7 +79,7 @@ class AiPipeline
                     }
 
                     $candidates[$index] = ['index' => $index, 'style' => $style, 'grid' => $grid];
-                    $emit(['type' => 'candidate', 'index' => $index, 'style' => $style, 'grid' => $grid->toArray()]);
+                    $emit(['type' => 'candidate', 'index' => $index, 'style' => $style, 'grid' => $grid->toArray(), 'raw_image' => $response['image']]);
                 });
         }
 
@@ -109,7 +111,8 @@ class AiPipeline
 
     /**
      * Sends the chosen version back to the image model with the user's remarks, then
-     * projects and reviews the result. An unchanged grid is reported as such.
+     * projects and reviews the result. An unchanged grid is reported as such; a changed
+     * one carries the model image bytes in `raw_image` (never sent to the browser).
      *
      * @param  list<string>  $remarks
      * @param  callable(array<string, mixed>): void  $emit
@@ -158,6 +161,7 @@ class AiPipeline
             'type' => 'result',
             'unchanged' => false,
             'grid' => $refined->toArray(),
+            'raw_image' => $response['image'],
             'score' => $review['scores'][0]['score'] ?? null,
             'problems' => $review['scores'][0]['problems'] ?? [],
             'usage' => $this->usageSummary(),

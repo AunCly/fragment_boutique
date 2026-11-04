@@ -144,6 +144,26 @@ class FragmentToolTest extends TestCase
         $this->assertTrue($config['ai']['enabled']);
     }
 
+    public function test_test_mode_is_checked_by_default_in_local(): void
+    {
+        $this->app['env'] = 'local';
+
+        $response = $this->actingAs($this->admin)->get(route('admin.tool.index'));
+
+        $this->assertTrue($response->viewData('config')['ai']['testModeByDefault']);
+        $response->assertSee('data-ref="test-mode" class="peer sr-only" checked', false);
+    }
+
+    public function test_test_mode_is_unchecked_by_default_outside_local(): void
+    {
+        $this->app['env'] = 'production';
+
+        $response = $this->actingAs($this->admin)->get(route('admin.tool.index'));
+
+        $this->assertFalse($response->viewData('config')['ai']['testModeByDefault']);
+        $response->assertDontSee('data-ref="test-mode" class="peer sr-only" checked', false);
+    }
+
     /* ---------------------------------------------------------------- Classic conversion */
 
     public function test_classic_conversion_returns_the_grid(): void
@@ -405,12 +425,13 @@ class FragmentToolTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_generate_count_must_be_1_2_or_4(): void
+    public function test_generate_count_must_be_1_2_4_6_or_8(): void
     {
         config(['services.gemini.key' => 'test-key']);
         Http::fake();
 
         $this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 3]))->assertJsonValidationErrors('count');
+        $this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 10]))->assertJsonValidationErrors('count');
 
         Http::assertNothingSent();
     }

@@ -15,6 +15,7 @@ export class Cropper {
         this.rows = 1;
         this.crop = null;
         this.drag = null;
+        this.locked = false;
 
         canvas.addEventListener('pointerdown', (event) => this.start(event));
         canvas.addEventListener('pointermove', (event) => this.move(event));
@@ -23,9 +24,16 @@ export class Cropper {
         window.addEventListener('resize', () => this.layout());
     }
 
-    setImage(image) {
+    /** New image, with the given crop or the default one. */
+    setImage(image, crop = null) {
         this.image = image;
-        this.reset();
+        if (!crop) {
+            this.reset();
+            return;
+        }
+        this.crop = { ...crop };
+        this.layout();
+        this.onChange(this.crop);
     }
 
     setFormat(cols, rows) {
@@ -131,7 +139,7 @@ export class Cropper {
     }
 
     start(event) {
-        if (!this.crop) {
+        if (!this.crop || this.locked) {
             return;
         }
         const point = this.pointer(event);
@@ -154,6 +162,10 @@ export class Cropper {
     move(event) {
         const point = this.pointer(event);
         if (!this.drag) {
+            if (this.locked) {
+                this.canvas.style.cursor = 'not-allowed';
+                return;
+            }
             const overCorner = this.crop && this.corners().some(([cx, cy]) => Math.abs(cx - point.x) <= HANDLE_PX && Math.abs(cy - point.y) <= HANDLE_PX);
             this.canvas.style.cursor = overCorner ? 'nwse-resize' : 'move';
             return;

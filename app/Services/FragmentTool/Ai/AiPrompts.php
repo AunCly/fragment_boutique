@@ -19,13 +19,15 @@ class AiPrompts
     ];
 
     /**
-     * Styles for a batch of $count images.
+     * Styles for a batch of $count images; beyond the number of styles, they are reused in turn.
      *
      * @return list<string>
      */
     public static function stylesFor(int $count): array
     {
-        return $count === 1 ? ['base'] : array_slice(array_keys(self::STYLES), 0, $count);
+        $styles = array_keys(self::STYLES);
+
+        return array_map(fn (int $index) => $styles[$index % count($styles)], range(0, max(1, $count) - 1));
     }
 
     /**

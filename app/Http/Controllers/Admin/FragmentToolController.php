@@ -6,6 +6,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\FragmentTool\ToolImageRequest;
 use App\Http\Requests\Admin\FragmentTool\ToolRequest;
 use App\Models\Format;
+use App\Models\FragmentAiRun;
+use App\Models\FragmentProject;
+use App\Models\FragmentVersion;
 use App\Models\Palette;
 use App\Services\FragmentTool\Ai\AiPipeline;
 use App\Services\FragmentTool\Ai\FakeGeminiClient;
@@ -14,6 +17,8 @@ use App\Services\FragmentTool\ConversionPipeline;
 use App\Services\FragmentTool\Grid;
 use App\Services\FragmentTool\Matching\MatcherRegistry;
 use App\Services\FragmentTool\MotifPainter;
+use App\Services\FragmentTool\Projects\AiRunRecorder;
+use App\Services\FragmentTool\Projects\ProjectStore;
 use App\Services\FragmentTool\Reduction\ReducerRegistry;
 use App\Services\FragmentTool\Rendering\FlatRenderer;
 use App\Services\FragmentTool\Rendering\PlanRenderer;
@@ -23,6 +28,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -38,11 +44,33 @@ class FragmentToolController extends Controller
         private readonly AiPipeline $ai,
         private readonly ReducerRegistry $reducers,
         private readonly MatcherRegistry $matchers,
+        private readonly ProjectStore $projects,
     ) {}
 
     public function index(WoodRenderer $wood): View
     {
-        $formats = Format::forTool()->ordered()->get();
+        return view('admin.tool.index', ['config' => $this->toolConfig($wood)]);
+    }
+
+    /**
+     * The tool reopened on a saved project. Its format and palette stay available even archived.
+     */
+    public function show(FragmentProject $project, WoodRenderer $wood): View
+    {
+        $project->load(['versions.parent']);
+
+        return view('admin.tool.index', ['config' => $this->toolConfig($wood, $project)]);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function toolConfig(WoodRenderer $wood, ?FragmentProject $project = null): array
+    {
+        $formats = Format::query()
+            ->where(fn ($query) => $query->forTool()->when($project, fn ($query) => $query->orWhere('id', $project->format_id)))
+            ->ordered()
+            ->get();
 
         $shapes = collect(self::SHAPES)
             ->map(fn (string $label, string $shape) => [
@@ -60,7 +88,11 @@ class FragmentToolController extends Controller
             ->filter(fn (array $shape) => $shape['formats']->isNotEmpty())
             ->values();
 
-        $palettes = Palette::active()->ordered()->with('woodTextures')->get()
+        $palettes = Palette::query()
+            ->where(fn ($query) => $query->active()->when($project, fn ($query) => $query->orWhere('id', $project->palette_id)))
+            ->ordered()
+            ->with('woodTextures')
+            ->get()
             ->filter(fn (Palette $palette) => $palette->woodTextures->count() >= Palette::MIN_ESSENCES)
             ->map(function (Palette $palette) use ($wood) {
                 $toolPalette = ToolPalette::fromPalette($palette);
@@ -77,7 +109,8 @@ class FragmentToolController extends Controller
             })
             ->values();
 
-        $config = [
+        return [
+            'project' => $project ? $this->projectData($project) : null,
             'shapes' => $shapes,
             'palettes' => $palettes,
             'motifs' => MotifPainter::MOTIFS,
@@ -85,6 +118,7 @@ class FragmentToolController extends Controller
             'maxUploadKb' => config('fragment_tool.max_upload_kb'),
             'ai' => [
                 'enabled' => $this->ai->isEnabled(),
+                'testModeByDefault' => app()->environment('local'),
                 'counts' => config('fragment_tool.ai.counts'),
                 'hintMaxLength' => config('fragment_tool.ai.hint_max_length'),
                 'imageModel' => config('fragment_tool.ai.image_model'),
@@ -98,10 +132,29 @@ class FragmentToolController extends Controller
                 'motifs' => route('admin.tool.motifs'),
                 'render' => route('admin.tool.render'),
                 'archive' => route('admin.tool.archive'),
+                'tool' => route('admin.tool.index'),
+                'projects' => route('admin.tool.projects.index'),
             ],
         ];
+    }
 
-        return view('admin.tool.index', compact('config'));
+    /**
+     * @return array<string, mixed>
+     */
+    private function projectData(FragmentProject $project): array
+    {
+        return [
+            ...$this->projectSummary($project),
+            'sourceUrl' => route('admin.tool.projects.source', $project),
+            'crop' => ['x' => $project->crop_x, 'y' => $project->crop_y, 'width' => $project->crop_width, 'height' => $project->crop_height],
+            'formatId' => $project->format_id,
+            'paletteId' => $project->palette_id,
+            'backgroundId' => $project->background_id,
+            'hint' => $project->hint,
+            'selectedVersionId' => $project->selected_version_id,
+            'costUsd' => $project->cost_usd,
+            'versions' => $project->versions->map(fn (FragmentVersion $version) => $version->toToolArray())->values()->all(),
+        ];
     }
 
     /**
@@ -178,10 +231,15 @@ class FragmentToolController extends Controller
         $palette = $request->palette();
         $backgroundId = $request->backgroundId();
 
+        [$recorder, $created] = $this->recorder($request, FragmentAiRun::KIND_GENERATE, [
+            'count' => $request->integer('count'),
+            'hint' => $request->input('hint'),
+        ]);
+
         return $this->ndjson(fn (callable $emit) => $ai->generate(
             $source, $crop, $format->cols, $format->rows, $palette, $backgroundId,
             $request->integer('count'), $request->input('hint'), $emit,
-        ));
+        ), $recorder, $created);
     }
 
     public function refine(ToolImageRequest $request): JsonResponse|StreamedResponse
@@ -190,6 +248,7 @@ class FragmentToolController extends Controller
             'grid' => ['required', 'string'],
             'remarks' => ['nullable', 'string', 'max:2000'],
             'hint' => ['nullable', 'string', 'max:'.config('fragment_tool.ai.hint_max_length')],
+            'version_id' => ['nullable', 'integer'],
         ]);
 
         $ai = $this->pipeline($request);
@@ -204,33 +263,60 @@ class FragmentToolController extends Controller
         $backgroundId = $request->backgroundId();
         $grid = $request->grid();
         $remarks = array_values(array_filter(array_map('trim', preg_split('/\R/', (string) $request->input('remarks')) ?: [])));
+        $remarks = $remarks ?: ['Améliore la lisibilité du sujet.'];
+
+        [$recorder, $created] = $this->recorder($request, FragmentAiRun::KIND_REFINE, [
+            'remarks' => $remarks,
+            'hint' => $request->input('hint'),
+            'grid' => $grid->toArray(),
+        ], $this->projectVersion($request));
 
         return $this->ndjson(fn (callable $emit) => $ai->refine(
             $source, $crop, $format->cols, $format->rows, $palette, $backgroundId,
-            $grid, $remarks ?: ['Améliore la lisibilité du sujet.'], $request->input('hint'), $emit,
-        ));
+            $grid, $remarks, $request->input('hint'), $emit,
+        ), $recorder, $created);
     }
 
     public function suggest(ToolImageRequest $request): JsonResponse
     {
-        $request->validate(['grid' => ['required', 'string']]);
+        $request->validate([
+            'grid' => ['required', 'string'],
+            'version_id' => ['nullable', 'integer'],
+        ]);
 
         $ai = $this->pipeline($request);
         if (! $ai->isEnabled()) {
             return $this->aiDisabled();
         }
 
+        $source = $request->source();
+        $crop = $request->crop();
+        $palette = $request->palette();
+        $backgroundId = $request->backgroundId();
+        $grid = $request->grid();
+
+        [$recorder, $created] = $this->recorder($request, FragmentAiRun::KIND_SUGGEST, ['grid' => $grid->toArray()], $this->projectVersion($request));
+        $run = $recorder?->run;
+
         try {
-            return response()->json($ai->suggest(
-                $request->source(),
-                $request->crop(),
-                $request->palette(),
-                $request->backgroundId(),
-                $request->grid(),
-            ));
+            $result = $ai->suggest($source, $crop, $palette, $backgroundId, $grid);
         } catch (GeminiException $e) {
-            return response()->json(['message' => $e->getMessage()], 502);
+            $run?->update(['status' => FragmentAiRun::STATUS_FAILED, 'error' => $e->getMessage()]);
+
+            return response()->json(['message' => $e->getMessage(), 'project' => $created ? $this->projectSummary($created) : null], 502);
         }
+
+        if ($run) {
+            $run->update([
+                'status' => FragmentAiRun::STATUS_SUCCEEDED,
+                'suggestions' => $result['suggestions'],
+                'usage' => $result['usage']['calls'],
+                'cost_usd' => $result['usage']['cost_usd'],
+            ]);
+            $run->project->addCost($result['usage']['cost_usd']);
+        }
+
+        return response()->json([...$result, 'project' => $created ? $this->projectSummary($created) : null]);
     }
 
     public function motifs(ToolRequest $request, MotifPainter $painter): JsonResponse
@@ -352,22 +438,106 @@ class FragmentToolController extends Controller
     }
 
     /**
-     * NDJSON stream: one JSON event per line, flushed as soon as it is emitted.
+     * Recorder of a paid AI call: the project is created on the first call made without one.
+     * Test mode records nothing.
+     *
+     * @param  array<string, mixed>  $parameters
+     * @return array{0: ?AiRunRecorder, 1: ?FragmentProject} recorder, and the project when just created
+     */
+    private function recorder(ToolImageRequest $request, string $kind, array $parameters, ?FragmentVersion $version = null): array
+    {
+        if ($request->boolean('test_mode')) {
+            return [null, null];
+        }
+
+        $project = $request->project();
+        $created = null;
+
+        if ($project === null) {
+            $project = $created = $this->projects->create(
+                $request->file('image'),
+                $request->source(),
+                $request->crop(),
+                $request->toolFormat(),
+                $request->integer('palette_id'),
+                $request->backgroundId(),
+                $request->input('hint'),
+                $request->user()?->id,
+            );
+        } elseif ($kind === FragmentAiRun::KIND_GENERATE) {
+            $project->update(['hint' => $request->input('hint'), 'background_id' => $request->backgroundId()]);
+        } elseif ($kind === FragmentAiRun::KIND_REFINE) {
+            $project->update(['hint' => $request->input('hint')]);
+        }
+
+        return [
+            AiRunRecorder::start($this->projects, $project, $kind, $parameters, $request->backgroundId(), $version, $request->user()?->id),
+            $created,
+        ];
+    }
+
+    /**
+     * Saved version the call works on, which must belong to the request project.
+     */
+    private function projectVersion(ToolImageRequest $request): ?FragmentVersion
+    {
+        $project = $request->project();
+        if ($project === null || ! $request->filled('version_id')) {
+            return null;
+        }
+
+        return $project->versions()->find($request->integer('version_id'))
+            ?? throw ValidationException::withMessages(['version_id' => 'Cette version n\'appartient pas au projet.']);
+    }
+
+    /**
+     * What the browser needs to follow and autosave a project.
+     *
+     * @return array{id: int, name: string, url: string, updateUrl: string, versionUrl: string}
+     */
+    private function projectSummary(FragmentProject $project): array
+    {
+        return [
+            'id' => $project->id,
+            'name' => $project->name,
+            'url' => route('admin.tool.projects.show', $project),
+            'updateUrl' => route('admin.tool.projects.update', $project),
+            'versionUrl' => route('admin.tool.projects.versions.update', [$project, '__VERSION__']),
+        ];
+    }
+
+    /**
+     * NDJSON stream: one JSON event per line, flushed as soon as it is emitted. A recorded
+     * call goes on, and is saved, even when the browser leaves.
      *
      * @param  callable(callable(array<string, mixed>): void): void  $run
      */
-    private function ndjson(callable $run): StreamedResponse
+    private function ndjson(callable $run, ?AiRunRecorder $recorder = null, ?FragmentProject $created = null): StreamedResponse
     {
-        return response()->stream(function () use ($run) {
+        return response()->stream(function () use ($run, $recorder, $created) {
             set_time_limit(0);
+            if ($recorder) {
+                ignore_user_abort(true);
+            }
 
-            $run(function (array $event): void {
+            $send = function (array $event): void {
+                unset($event['raw_image']);
                 echo json_encode($event, JSON_UNESCAPED_UNICODE)."\n";
                 if (ob_get_level() > 0) {
                     ob_flush();
                 }
                 flush();
-            });
+            };
+
+            if ($created) {
+                $send(['type' => 'project', 'project' => $this->projectSummary($created)]);
+            }
+
+            try {
+                $run($recorder ? $recorder->wrap($send) : $send);
+            } finally {
+                $recorder?->failIfUnfinished();
+            }
         }, 200, [
             'Content-Type' => 'application/x-ndjson; charset=utf-8',
             'Cache-Control' => 'no-cache',

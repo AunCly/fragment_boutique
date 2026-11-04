@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin\FragmentTool;
 
 use App\Models\Format;
+use App\Models\FragmentProject;
 use App\Models\Palette;
 use App\Services\FragmentTool\Grid;
 use App\Services\FragmentTool\ToolPalette;
@@ -14,11 +15,14 @@ use InvalidArgumentException;
 
 /**
  * Format, palette and background essence shared by every Fragment tool call.
+ * With a saved project, its format and palette are used (even archived) instead.
  * Optional fields of the individual calls are validated here too, when present.
  */
 class ToolRequest extends FormRequest
 {
     private ?ToolPalette $toolPalette = null;
+
+    private ?FragmentProject $fragmentProject = null;
 
     public function authorize(): bool
     {
@@ -30,6 +34,13 @@ class ToolRequest extends FormRequest
      */
     public function rules(): array
     {
+        if ($this->hasProject()) {
+            return [
+                'project_id' => ['required', 'integer', Rule::exists('fragment_projects', 'id')],
+                'background_id' => ['nullable', 'integer'],
+            ];
+        }
+
         return [
             'format_id' => ['required', 'integer', Rule::exists('formats', 'id')->where('is_tool_enabled', true)],
             'palette_id' => ['required', 'integer', Rule::exists('palettes', 'id')->where('is_active', true)],
@@ -48,9 +59,23 @@ class ToolRequest extends FormRequest
         ];
     }
 
+    public function hasProject(): bool
+    {
+        return $this->filled('project_id');
+    }
+
+    public function project(): ?FragmentProject
+    {
+        if (! $this->hasProject()) {
+            return null;
+        }
+
+        return $this->fragmentProject ??= FragmentProject::with(['format', 'palette.woodTextures'])->findOrFail($this->integer('project_id'));
+    }
+
     public function toolFormat(): Format
     {
-        return Format::findOrFail($this->integer('format_id'));
+        return $this->project()?->format ?? Format::findOrFail($this->integer('format_id'));
     }
 
     public function palette(): ToolPalette
@@ -60,19 +85,20 @@ class ToolRequest extends FormRequest
         }
 
         try {
-            return $this->toolPalette = ToolPalette::fromPalette(Palette::with('woodTextures')->findOrFail($this->integer('palette_id')));
+            return $this->toolPalette = $this->project()?->toolPalette()
+                ?? ToolPalette::fromPalette(Palette::with('woodTextures')->findOrFail($this->integer('palette_id')));
         } catch (InvalidArgumentException $e) {
             throw ValidationException::withMessages(['palette_id' => $e->getMessage()]);
         }
     }
 
     /**
-     * Chosen background essence, or the palette default (Hêtre when present).
+     * Chosen background essence, or the project one, or the palette default (Hêtre when present).
      */
     public function backgroundId(): int
     {
         if (! $this->filled('background_id')) {
-            return $this->palette()->defaultBackgroundId();
+            return $this->project()?->background_id ?? $this->palette()->defaultBackgroundId();
         }
 
         $id = $this->integer('background_id');

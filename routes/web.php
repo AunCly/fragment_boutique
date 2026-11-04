@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\FaqController as AdminFaqController;
 use App\Http\Controllers\Admin\FormatController as AdminFormatController;
+use App\Http\Controllers\Admin\FragmentProjectController as AdminFragmentProjectController;
 use App\Http\Controllers\Admin\FragmentToolController as AdminFragmentToolController;
 use App\Http\Controllers\Admin\GalleryImageController as AdminGalleryImageController;
 use App\Http\Controllers\Admin\PaletteController as AdminPaletteController;
@@ -58,8 +59,12 @@ Route::prefix('fragment-admin')->name('admin.')->group(function () {
         Route::get('/', [AdminDashboardController::class, 'index'])->name('dashboard');
         Route::resource('faqs', AdminFaqController::class)->except(['show']);
         Route::resource('wood-textures', AdminWoodTextureController::class)->except(['show']);
+        Route::patch('/wood-textures/{wood_texture}/archive', [AdminWoodTextureController::class, 'archive'])->name('wood-textures.archive');
         Route::resource('formats', AdminFormatController::class)->except(['show']);
+        Route::patch('/formats/{format}/archive', [AdminFormatController::class, 'archive'])->name('formats.archive');
         Route::resource('palettes', AdminPaletteController::class)->except(['show']);
+        Route::patch('/palettes/{palette}/archive', [AdminPaletteController::class, 'archive'])->name('palettes.archive');
+        Route::post('/palettes/{palette}/duplicate', [AdminPaletteController::class, 'duplicate'])->name('palettes.duplicate');
 
         Route::prefix('outil')->name('tool.')->controller(AdminFragmentToolController::class)->group(function () {
             Route::get('/', 'index')->name('index');
@@ -71,6 +76,16 @@ Route::prefix('fragment-admin')->name('admin.')->group(function () {
             Route::post('/motifs', 'motifs')->name('motifs');
             Route::post('/render', 'render')->name('render');
             Route::post('/render/zip', 'archive')->name('archive');
+            Route::get('/projets/{project}', 'show')->name('projects.show');
+        });
+        Route::prefix('outil/projets')->name('tool.projects.')->controller(AdminFragmentProjectController::class)->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::patch('/{project}', 'update')->name('update');
+            Route::delete('/{project}', 'destroy')->name('destroy');
+            Route::get('/{project}/source', 'source')->name('source');
+            Route::get('/{project}/miniature', 'thumbnail')->name('thumbnail');
+            Route::get('/{project}/apercu', 'preview')->name('preview');
+            Route::patch('/{project}/versions/{version}', 'updateVersion')->name('versions.update')->scopeBindings();
         });
         Route::view('/maquette-outil', 'admin.tool.mockup')->name('tool-mockup');
         Route::resource('gallery-images', AdminGalleryImageController::class)->only(['index', 'store', 'update', 'destroy']);

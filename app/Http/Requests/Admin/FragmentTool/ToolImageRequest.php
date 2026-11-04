@@ -10,7 +10,8 @@ use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 /**
- * Tool call carrying the source image and its crop (the server keeps nothing between requests).
+ * Tool call working on a source image and its crop: uploaded with the request, or read
+ * from a saved project.
  */
 class ToolImageRequest extends ToolRequest
 {
@@ -21,6 +22,10 @@ class ToolImageRequest extends ToolRequest
      */
     public function rules(): array
     {
+        if ($this->hasProject()) {
+            return parent::rules();
+        }
+
         return [
             ...parent::rules(),
             'image' => ['required', 'file', 'mimes:png,jpg,jpeg', 'max:'.config('fragment_tool.max_upload_kb')],
@@ -46,7 +51,7 @@ class ToolImageRequest extends ToolRequest
     public function source(): SourceImage
     {
         try {
-            return $this->sourceImage ??= SourceImage::fromUpload($this->file('image'));
+            return $this->sourceImage ??= $this->project()?->source() ?? SourceImage::fromUpload($this->file('image'));
         } catch (InvalidImageException $e) {
             throw ValidationException::withMessages(['image' => $e->getMessage()]);
         }
@@ -54,6 +59,10 @@ class ToolImageRequest extends ToolRequest
 
     public function crop(): CropRect
     {
+        if ($project = $this->project()) {
+            return $project->crop();
+        }
+
         $crop = new CropRect(
             $this->integer('crop_x'),
             $this->integer('crop_y'),

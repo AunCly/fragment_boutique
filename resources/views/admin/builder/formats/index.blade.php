@@ -19,6 +19,12 @@
     </div>
 @endif
 
+@if (session('error'))
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+        <p class="font-sans-soft text-sm text-red-700">{{ session('error') }}</p>
+    </div>
+@endif
+
 @if ($formats->isEmpty())
     <div class="text-center py-20 border border-border rounded-2xl bg-card">
         <p class="font-sans-soft text-muted-foreground">Aucun format pour l'instant.</p>
@@ -57,13 +63,23 @@
                     <a href="{{ route('admin.formats.edit', $format) }}" class="font-sans-soft text-sm text-muted-foreground hover:text-foreground transition">
                         Modifier
                     </a>
-                    <form method="POST" action="{{ route('admin.formats.destroy', $format) }}" onsubmit="return confirm('Supprimer ce format ?')">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="font-sans-soft text-sm text-muted-foreground hover:text-destructive transition">
-                            Supprimer
-                        </button>
-                    </form>
+                    @if ($format->projects_exists)
+                        <form method="POST" action="{{ route('admin.formats.archive', $format) }}" onsubmit="return confirm('Archiver ce format ? Il ne sera plus proposé dans la boutique ni pour les nouveaux projets.')" title="Utilisé par des projets de l'outil : suppression impossible">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit" class="font-sans-soft text-sm text-muted-foreground hover:text-foreground transition">
+                                Archiver
+                            </button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('admin.formats.destroy', $format) }}" onsubmit="return confirm('Supprimer ce format ?')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="font-sans-soft text-sm text-muted-foreground hover:text-destructive transition">
+                                Supprimer
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         @endforeach

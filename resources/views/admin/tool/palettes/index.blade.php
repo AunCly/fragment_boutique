@@ -19,6 +19,12 @@
     </div>
 @endif
 
+@if (session('error'))
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+        <p class="font-sans-soft text-sm text-red-700">{{ session('error') }}</p>
+    </div>
+@endif
+
 @if ($palettes->isEmpty())
     <div class="text-center py-20 border border-border rounded-2xl bg-card">
         <p class="font-sans-soft text-muted-foreground">Aucune palette pour l'instant.</p>
@@ -56,13 +62,29 @@
                     <a href="{{ route('admin.palettes.edit', $palette) }}" class="font-sans-soft text-sm text-muted-foreground hover:text-foreground transition">
                         Modifier
                     </a>
-                    <form method="POST" action="{{ route('admin.palettes.destroy', $palette) }}" onsubmit="return confirm('Supprimer cette palette ?')">
+                    <form method="POST" action="{{ route('admin.palettes.duplicate', $palette) }}">
                         @csrf
-                        @method('DELETE')
-                        <button type="submit" class="font-sans-soft text-sm text-muted-foreground hover:text-destructive transition">
-                            Supprimer
+                        <button type="submit" class="font-sans-soft text-sm text-muted-foreground hover:text-foreground transition">
+                            Dupliquer
                         </button>
                     </form>
+                    @if ($palette->projects_exists)
+                        <form method="POST" action="{{ route('admin.palettes.archive', $palette) }}" onsubmit="return confirm('Archiver cette palette ? Elle ne sera plus proposée pour les nouveaux projets.')" title="Utilisé par des projets de l'outil : suppression impossible">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit" class="font-sans-soft text-sm text-muted-foreground hover:text-foreground transition">
+                                Archiver
+                            </button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('admin.palettes.destroy', $palette) }}" onsubmit="return confirm('Supprimer cette palette ?')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="font-sans-soft text-sm text-muted-foreground hover:text-destructive transition">
+                                Supprimer
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         @endforeach

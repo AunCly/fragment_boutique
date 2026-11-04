@@ -75,7 +75,7 @@ return [
         */
         'projection_long_side' => 640,
 
-        'counts' => [1, 2, 4],
+        'counts' => [1, 2, 4, 6, 8],
         'hint_max_length' => 500,
         'max_suggestions' => 15,
         'max_problems' => 4,

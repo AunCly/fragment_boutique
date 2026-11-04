@@ -9,6 +9,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class WoodTextureController extends Controller
@@ -16,8 +17,9 @@ class WoodTextureController extends Controller
     public function index(): View
     {
         $textures = WoodTexture::ordered()->get();
+        $usedIds = WoodTexture::idsUsedByProjects();
 
-        return view('admin.builder.wood-textures.index', compact('textures'));
+        return view('admin.builder.wood-textures.index', compact('textures', 'usedIds'));
     }
 
     public function create(): View
@@ -96,6 +98,13 @@ class WoodTextureController extends Controller
             $data['texture_path'] = $request->file('texture')->store('wood_textures', 'public');
         }
 
+        $removedPaletteIds = array_diff($woodTexture->palettes()->pluck('palettes.id')->all(), $validated['palette_ids'] ?? []);
+        if (Palette::whereIn('id', $removedPaletteIds)->whereHas('projects')->exists()) {
+            throw ValidationException::withMessages([
+                'palette_ids' => 'Cette essence ne peut pas être retirée d\'une palette utilisée par des projets de l\'outil. Dupliquez la palette pour en créer une variante.',
+            ]);
+        }
+
         $woodTexture->update($data);
         $woodTexture->palettes()->sync($validated['palette_ids'] ?? []);
 
@@ -104,6 +113,10 @@ class WoodTextureController extends Controller
 
     public function destroy(WoodTexture $woodTexture): RedirectResponse
     {
+        if ($woodTexture->isUsedByProjects()) {
+            return redirect()->route('admin.wood-textures.index')->with('error', 'Cette essence est utilisée par des projets de l\'outil : archivez-la plutôt.');
+        }
+
         if ($woodTexture->texture_path) {
             Storage::disk('public')->delete($woodTexture->texture_path);
         }
@@ -111,6 +124,16 @@ class WoodTextureController extends Controller
         $woodTexture->delete();
 
         return redirect()->route('admin.wood-textures.index')->with('success', 'Essence supprimée.');
+    }
+
+    /**
+     * Marked inactive; the projects that use it keep working.
+     */
+    public function archive(WoodTexture $woodTexture): RedirectResponse
+    {
+        $woodTexture->update(['is_active' => false]);
+
+        return redirect()->route('admin.wood-textures.index')->with('success', 'Essence archivée.');
     }
 
     private function uniqueSlug(string $name, ?int $ignoreId = null): string

@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\Feature\FragmentTool\Concerns\BuildsToolFixtures;
+use Tests\Feature\FragmentTool\Concerns\FakesGemini;
 use Tests\TestCase;
 
 /**
@@ -26,6 +27,7 @@ use Tests\TestCase;
 class AiToolTest extends TestCase
 {
     use BuildsToolFixtures;
+    use FakesGemini;
     use RefreshDatabase;
 
     private const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/interactions';
@@ -42,6 +44,7 @@ class AiToolTest extends TestCase
 
         $this->withoutVite();
         Storage::fake('public');
+        Storage::fake('local');
         config(['services.gemini.key' => 'test-key']);
         Http::preventStrayRequests();
 
@@ -53,49 +56,6 @@ class AiToolTest extends TestCase
     private function id(string $slug): int
     {
         return $this->essenceId($this->palette, $slug);
-    }
-
-    /**
-     * 1024 × 1024 JPEG drawn like the model does: 16 × 16 big pixels.
-     */
-    private function modelImage(string $subjectHex = '#c26d2d', string $backgroundHex = '#9fb4c8'): string
-    {
-        $png = $this->pixelArtPng($this->subjectHexGrid(16, 16, $backgroundHex, $subjectHex, margin: 5), 64);
-
-        return SourceImage::toJpeg(imagecreatefromstring($png));
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function imageInteraction(?string $jpeg = null): array
-    {
-        return [
-            'id' => 'interaction-1',
-            'steps' => [
-                ['type' => 'thought', 'summary' => 'Planning the pixel art…'],
-                ['type' => 'model_output', 'content' => [
-                    ['type' => 'image', 'mime_type' => 'image/jpeg', 'data' => base64_encode($jpeg ?? $this->modelImage())],
-                ]],
-            ],
-            'usage' => ['total_input_tokens' => 1500, 'total_output_tokens' => 1290, 'total_thought_tokens' => 200],
-        ];
-    }
-
-    /**
-     * @param  array<string, mixed>  $answer
-     * @return array<string, mixed>
-     */
-    private function textInteraction(array $answer, bool $fenced = true): array
-    {
-        $json = json_encode($answer);
-
-        return [
-            'steps' => [['type' => 'model_output', 'content' => [
-                ['type' => 'text', 'text' => $fenced ? "Voici mon avis :\n```json\n{$json}\n```" : $json],
-            ]]],
-            'usage' => ['total_input_tokens' => 3000, 'total_output_tokens' => 150],
-        ];
     }
 
     /**
@@ -145,34 +105,6 @@ class AiToolTest extends TestCase
             ->post(route($route), $data);
     }
 
-    /**
-     * @return list<array<string, mixed>>
-     */
-    private function events(TestResponse $response): array
-    {
-        $response->assertOk();
-        $this->assertStringStartsWith('application/x-ndjson', $response->headers->get('Content-Type'));
-
-        return array_map(
-            fn (string $line) => json_decode($line, true),
-            array_values(array_filter(explode("\n", $response->streamedContent()))),
-        );
-    }
-
-    /**
-     * @param  list<array<string, mixed>>  $events
-     * @return list<array<string, mixed>>
-     */
-    private function ofType(array $events, string $type): array
-    {
-        return array_values(array_filter($events, fn (array $event) => $event['type'] === $type));
-    }
-
-    private function isImageRequest(Request $request): bool
-    {
-        return ($request->data()['response_format']['type'] ?? null) === 'image';
-    }
-
     /* ---------------------------------------------------------------- Generation */
 
     public function test_generation_streams_projected_candidates_then_the_judge_review(): void
@@ -189,7 +121,8 @@ class AiToolTest extends TestCase
 
         $events = $this->events($this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 2, 'hint' => 'garder le chapeau'])));
 
-        $this->assertSame('stage', $events[0]['type']);
+        $this->assertSame('project', $events[0]['type'], 'A first real generation creates the project.');
+        $this->assertSame('stage', $events[1]['type']);
         $candidates = $this->ofType($events, 'candidate');
         $this->assertCount(2, $candidates);
         $this->assertSame($this->expectedProjection(), $candidates[0]['grid']);
@@ -479,6 +412,27 @@ class AiToolTest extends TestCase
         $this->assertSame('visible', GeminiClient::findText($json));
         $this->assertNull(GeminiClient::findImage($json));
         $this->assertSame('abc', GeminiClient::findImage(['output_image' => ['data' => base64_encode('abc')]]));
+    }
+
+    public function test_styles_are_reused_in_turn_for_large_batches(): void
+    {
+        $this->assertSame(['base'], AiPrompts::stylesFor(1));
+        $this->assertSame(['base', 'contrast', 'faithful', 'cute'], AiPrompts::stylesFor(4));
+        $this->assertSame(['base', 'contrast', 'faithful', 'cute', 'base', 'contrast'], AiPrompts::stylesFor(6));
+        $this->assertCount(8, AiPrompts::stylesFor(8));
+    }
+
+    public function test_test_mode_generates_a_batch_of_eight(): void
+    {
+        config(['services.gemini.key' => null, 'fragment_tool.ai.test_mode_delay_ms' => 0]);
+        Http::fake();
+
+        $events = $this->events($this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 8, 'test_mode' => '1'])));
+
+        $this->assertCount(8, $this->ofType($events, 'candidate'));
+        $result = $this->ofType($events, 'result')[0];
+        $this->assertSame(range(0, 7), array_column($result['candidates'], 'index'));
+        Http::assertNothingSent();
     }
 
     public function test_prompts_ask_for_half_the_grid_and_never_list_the_essences(): void

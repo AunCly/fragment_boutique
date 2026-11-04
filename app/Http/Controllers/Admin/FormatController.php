@@ -12,7 +12,7 @@ class FormatController extends Controller
 {
     public function index(): View
     {
-        $formats = Format::ordered()->get();
+        $formats = Format::withExists('projects')->ordered()->get();
 
         return view('admin.builder.formats.index', compact('formats'));
     }
@@ -71,8 +71,22 @@ class FormatController extends Controller
 
     public function destroy(Format $format): RedirectResponse
     {
+        if ($format->isUsedByProjects()) {
+            return redirect()->route('admin.formats.index')->with('error', 'Ce format est utilisé par des projets de l\'outil : archivez-le plutôt.');
+        }
+
         $format->delete();
 
         return redirect()->route('admin.formats.index')->with('success', 'Format supprimé.');
+    }
+
+    /**
+     * Hidden from the shop and from new tool projects; the projects that use it keep working.
+     */
+    public function archive(Format $format): RedirectResponse
+    {
+        $format->update(['is_active' => false, 'is_tool_enabled' => false]);
+
+        return redirect()->route('admin.formats.index')->with('success', 'Format archivé.');
     }
 }

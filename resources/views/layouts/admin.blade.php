@@ -27,8 +27,11 @@
                     <a href="{{ route('admin.formats.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.formats.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
                         Formats
                     </a>
-                    <a href="{{ route('admin.tool.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.tool.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
+                    <a href="{{ route('admin.tool.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.tool.*') && ! request()->routeIs('admin.tool.projects.index') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
                         Outil
+                    </a>
+                    <a href="{{ route('admin.tool.projects.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.tool.projects.index') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
+                        Projets
                     </a>
                     <a href="{{ route('admin.palettes.index') }}" class="font-sans-soft text-sm transition {{ request()->routeIs('admin.palettes.*') ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground' }}">
                         Palettes

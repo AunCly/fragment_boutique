@@ -6,6 +6,7 @@ use Database\Factories\FormatFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Format extends Model
 {
@@ -30,6 +31,20 @@ class Format extends Model
             'is_active' => 'boolean',
             'is_tool_enabled' => 'boolean',
         ];
+    }
+
+    /** @return HasMany<FragmentProject, $this> */
+    public function projects(): HasMany
+    {
+        return $this->hasMany(FragmentProject::class);
+    }
+
+    /**
+     * A format used by a saved project can only be archived.
+     */
+    public function isUsedByProjects(): bool
+    {
+        return $this->projects()->exists();
     }
 
     public function scopeActive(Builder $query): void

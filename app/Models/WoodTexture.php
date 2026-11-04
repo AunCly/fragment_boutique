@@ -43,6 +43,28 @@ class WoodTexture extends Model
         return $this->belongsToMany(Palette::class);
     }
 
+    /**
+     * An essence of a palette used by a saved project (or a project background) can only be archived.
+     */
+    public function isUsedByProjects(): bool
+    {
+        return in_array($this->id, self::idsUsedByProjects(), true);
+    }
+
+    /**
+     * @return list<int>
+     */
+    public static function idsUsedByProjects(): array
+    {
+        $paletteIds = FragmentProject::query()->select('palette_id');
+
+        return self::query()
+            ->whereHas('palettes', fn (Builder $query) => $query->whereIn('palettes.id', $paletteIds))
+            ->orWhereIn('id', FragmentProject::query()->select('background_id'))
+            ->pluck('id')
+            ->all();
+    }
+
     public function scopeActive(Builder $query): void
     {
         $query->where('is_active', true);

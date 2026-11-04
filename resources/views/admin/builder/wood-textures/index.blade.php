@@ -19,6 +19,12 @@
     </div>
 @endif
 
+@if (session('error'))
+    <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl">
+        <p class="font-sans-soft text-sm text-red-700">{{ session('error') }}</p>
+    </div>
+@endif
+
 @if ($textures->isEmpty())
     <div class="text-center py-20 border border-border rounded-2xl bg-card">
         <p class="font-sans-soft text-muted-foreground">Aucune essence pour l'instant.</p>
@@ -56,13 +62,23 @@
                     <a href="{{ route('admin.wood-textures.edit', $texture) }}" class="font-sans-soft text-sm text-muted-foreground hover:text-foreground transition">
                         Modifier
                     </a>
-                    <form method="POST" action="{{ route('admin.wood-textures.destroy', $texture) }}" onsubmit="return confirm('Supprimer cette essence ?')">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="font-sans-soft text-sm text-muted-foreground hover:text-destructive transition">
-                            Supprimer
-                        </button>
-                    </form>
+                    @if (in_array($texture->id, $usedIds, true))
+                        <form method="POST" action="{{ route('admin.wood-textures.archive', $texture) }}" onsubmit="return confirm('Archiver cette essence ?')" title="Utilisé par des projets de l'outil : suppression impossible">
+                            @csrf
+                            @method('PATCH')
+                            <button type="submit" class="font-sans-soft text-sm text-muted-foreground hover:text-foreground transition">
+                                Archiver
+                            </button>
+                        </form>
+                    @else
+                        <form method="POST" action="{{ route('admin.wood-textures.destroy', $texture) }}" onsubmit="return confirm('Supprimer cette essence ?')">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="font-sans-soft text-sm text-muted-foreground hover:text-destructive transition">
+                                Supprimer
+                            </button>
+                        </form>
+                    @endif
                 </div>
             </div>
         @endforeach
