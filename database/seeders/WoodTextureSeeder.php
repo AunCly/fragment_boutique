@@ -4,9 +4,15 @@ namespace Database\Seeders;
 
 use App\Models\WoodTexture;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
 
 class WoodTextureSeeder extends Seeder
 {
+    /**
+     * Essences with their photo, copied from resources/wood_textures to the public disk
+     * when missing there (an uploaded replacement is kept).
+     */
     public function run(): void
     {
         $textures = [
@@ -43,7 +49,17 @@ class WoodTextureSeeder extends Seeder
         ];
 
         foreach ($textures as $data) {
+            $this->copyPhoto($data['texture_path']);
             WoodTexture::updateOrCreate(['slug' => $data['slug']], $data);
+        }
+    }
+
+    private function copyPhoto(string $path): void
+    {
+        $source = resource_path('wood_textures/'.basename($path));
+
+        if (File::exists($source) && ! Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->put($path, File::get($source));
         }
     }
 }
