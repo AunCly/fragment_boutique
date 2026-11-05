@@ -41,6 +41,8 @@ class AiPipeline
      *
      * Candidate events carry the model image bytes in `raw_image` (never sent to the browser).
      *
+     * @param  string  $imageModel  one of fragment_tool.ai.image_models
+     * @param  bool  $outline  dark outline and light halo around the subject: asked in the prompts and imposed by the projection
      * @param  callable(array<string, mixed>): void  $emit  receives stage, warning, candidate, result and error events
      */
     public function generate(
@@ -52,10 +54,13 @@ class AiPipeline
         int $backgroundId,
         int $count,
         ?string $hint,
+        string $imageModel,
+        bool $outline,
         callable $emit,
     ): void {
         $this->usages = [];
         $haloId = $palette->haloId();
+        $framingHaloId = $outline ? $haloId : null;
         $emit(['type' => 'stage', 'message' => 'Préparation de l\'image…']);
         $original = $this->originalImage($source, $crop, $palette, $backgroundId);
 
@@ -64,14 +69,14 @@ class AiPipeline
         $candidates = [];
         $promises = [];
         foreach (AiPrompts::stylesFor($count) as $index => $style) {
-            $prompt = AiPrompts::generation($cols, $rows, $palette, $backgroundId, $haloId, $style, $hint);
+            $prompt = AiPrompts::generation($cols, $rows, $palette, $backgroundId, $haloId, $style, $hint, $outline);
             $promises[] = $this->client
-                ->generateImageAsync($prompt, [$original], AiPrompts::aspectRatio($cols, $rows))
-                ->then(function (mixed $result) use ($index, $style, $cols, $rows, $palette, $backgroundId, $haloId, $emit, &$candidates) {
+                ->generateImageAsync($prompt, [$original], AiPrompts::aspectRatio($cols, $rows), $imageModel)
+                ->then(function (mixed $result) use ($index, $style, $cols, $rows, $palette, $backgroundId, $framingHaloId, $emit, &$candidates) {
                     try {
                         $response = GeminiClient::unwrap($result);
                         $this->usages[] = $response['usage'];
-                        $grid = $this->projector->project($response['image'], $cols, $rows, $palette, $backgroundId, $haloId);
+                        $grid = $this->projector->project($response['image'], $cols, $rows, $palette, $backgroundId, $framingHaloId);
                     } catch (Throwable $e) {
                         $emit(['type' => 'warning', 'message' => 'Image '.($index + 1).' : '.$e->getMessage()]);
 
@@ -93,7 +98,7 @@ class AiPipeline
         }
 
         $emit(['type' => 'stage', 'message' => 'Avis du juge…']);
-        $review = $this->reviewOrWarn($original, array_column($candidates, 'grid', 'index'), $palette, $backgroundId, $haloId, $emit);
+        $review = $this->reviewOrWarn($original, array_column($candidates, 'grid', 'index'), $palette, $backgroundId, $haloId, $outline, $emit);
 
         $emit([
             'type' => 'result',
@@ -115,6 +120,8 @@ class AiPipeline
      * one carries the model image bytes in `raw_image` (never sent to the browser).
      *
      * @param  list<string>  $remarks
+     * @param  string  $imageModel  one of fragment_tool.ai.image_models
+     * @param  bool  $outline  dark outline and light halo around the subject: asked in the prompts and imposed by the projection
      * @param  callable(array<string, mixed>): void  $emit
      */
     public function refine(
@@ -127,6 +134,8 @@ class AiPipeline
         Grid $grid,
         array $remarks,
         ?string $hint,
+        string $imageModel,
+        bool $outline,
         callable $emit,
     ): void {
         $this->usages = [];
@@ -136,12 +145,13 @@ class AiPipeline
         try {
             $emit(['type' => 'stage', 'message' => 'Raffinement…']);
             $response = $this->client->generateImage(
-                AiPrompts::refine($cols, $rows, $palette, $backgroundId, $haloId, $remarks, $hint),
+                AiPrompts::refine($cols, $rows, $palette, $backgroundId, $haloId, $remarks, $hint, $outline),
                 [$original, $this->gridImage($grid, $palette)],
                 AiPrompts::aspectRatio($cols, $rows),
+                $imageModel,
             );
             $this->usages[] = $response['usage'];
-            $refined = $this->projector->project($response['image'], $cols, $rows, $palette, $backgroundId, $haloId);
+            $refined = $this->projector->project($response['image'], $cols, $rows, $palette, $backgroundId, $outline ? $haloId : null);
         } catch (Throwable $e) {
             $emit(['type' => 'error', 'message' => $e->getMessage(), 'usage' => $this->usageSummary()]);
 
@@ -155,7 +165,7 @@ class AiPipeline
         }
 
         $emit(['type' => 'stage', 'message' => 'Avis du juge…']);
-        $review = $this->reviewOrWarn($original, [0 => $refined], $palette, $backgroundId, $haloId, $emit);
+        $review = $this->reviewOrWarn($original, [0 => $refined], $palette, $backgroundId, $haloId, $outline, $emit);
 
         $emit([
             'type' => 'result',
@@ -197,7 +207,7 @@ class AiPipeline
      * @param  array<int, Grid>  $grids  by candidate index
      * @return array{scores: array<int, array{score: ?float, problems: list<string>}>, preferred: ?int}
      */
-    public function review(array $original, array $grids, ToolPalette $palette, int $backgroundId, int $haloId): array
+    public function review(array $original, array $grids, ToolPalette $palette, int $backgroundId, int $haloId, bool $outline = true): array
     {
         $images = [$original];
         foreach ($grids as $grid) {
@@ -206,7 +216,7 @@ class AiPipeline
 
         $answer = $this->client->json(
             config('fragment_tool.ai.judge_model'),
-            AiPrompts::judge(count($grids), $backgroundId, $haloId, $palette),
+            AiPrompts::judge(count($grids), $backgroundId, $haloId, $palette, $outline),
             $images,
             AiPrompts::judgeSchema(),
         );
@@ -246,10 +256,10 @@ class AiPipeline
      * @param  callable(array<string, mixed>): void  $emit
      * @return array{scores: array<int, array{score: ?float, problems: list<string>}>, preferred: ?int}
      */
-    private function reviewOrWarn(array $original, array $grids, ToolPalette $palette, int $backgroundId, int $haloId, callable $emit): array
+    private function reviewOrWarn(array $original, array $grids, ToolPalette $palette, int $backgroundId, int $haloId, bool $outline, callable $emit): array
     {
         try {
-            return $this->review($original, $grids, $palette, $backgroundId, $haloId);
+            return $this->review($original, $grids, $palette, $backgroundId, $haloId, $outline);
         } catch (Throwable $e) {
             $emit(['type' => 'warning', 'message' => 'Juge indisponible, versions ajoutées sans note. '.$e->getMessage()]);
 

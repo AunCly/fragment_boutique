@@ -138,6 +138,19 @@
                     </p>
                 @endunless
                 <div class="space-y-1">
+                    <label for="ai-image-model" class="block font-sans-soft text-[11px] text-muted-foreground">Modèle de dessin</label>
+                    <select id="ai-image-model" data-ref="image-model" class="{{ $field }} font-mono">
+                        @foreach ($config['ai']['imageModels'] as $imageModel)
+                            <option value="{{ $imageModel }}" @selected($imageModel === $config['ai']['imageModel'])>{{ $imageModel }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <label class="flex items-center gap-1.5 font-sans-soft text-xs cursor-pointer" title="Contour foncé et liseré clair autour du sujet, demandés au modèle et imposés à la projection">
+                    <input type="checkbox" data-ref="outline" class="peer sr-only" checked>
+                    <span class="relative inline-block w-8 h-4 rounded-full bg-border peer-checked:bg-primary transition after:absolute after:left-0.5 after:top-0.5 after:w-3 after:h-3 after:rounded-full after:bg-card after:transition peer-checked:after:translate-x-4"></span>
+                    Contour autour du sujet
+                </label>
+                <div class="space-y-1">
                     <p class="font-sans-soft text-[11px] text-muted-foreground">Nombre de dessins générés</p>
                     <div class="flex border border-border overflow-hidden font-sans-soft text-xs">
                         @foreach ($config['ai']['counts'] as $count)

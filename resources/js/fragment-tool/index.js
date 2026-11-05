@@ -489,10 +489,13 @@ class FragmentTool {
 
     /**
      * AI request data; test mode makes the server answer without calling Gemini.
+     * Image model and outline only matter to generation and refinement.
      */
     aiData(options) {
         const data = this.formData({ withImage: true, ...options });
         data.append('test_mode', this.isTestMode() ? '1' : '0');
+        data.append('image_model', this.ref('image-model').value);
+        data.append('outline', this.ref('outline').checked ? '1' : '0');
         return data;
     }
 

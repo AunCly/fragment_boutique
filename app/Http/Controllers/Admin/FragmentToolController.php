@@ -122,6 +122,7 @@ class FragmentToolController extends Controller
                 'counts' => config('fragment_tool.ai.counts'),
                 'hintMaxLength' => config('fragment_tool.ai.hint_max_length'),
                 'imageModel' => config('fragment_tool.ai.image_model'),
+                'imageModels' => config('fragment_tool.ai.image_models'),
                 'judgeModel' => config('fragment_tool.ai.judge_model'),
                 'suggestModel' => config('fragment_tool.ai.suggest_model'),
             ],
@@ -218,6 +219,7 @@ class FragmentToolController extends Controller
         $request->validate([
             'count' => ['required', 'integer', Rule::in(config('fragment_tool.ai.counts'))],
             'hint' => ['nullable', 'string', 'max:'.config('fragment_tool.ai.hint_max_length')],
+            ...$this->redrawOptionRules(),
         ]);
 
         $ai = $this->pipeline($request);
@@ -234,11 +236,13 @@ class FragmentToolController extends Controller
         [$recorder, $created] = $this->recorder($request, FragmentAiRun::KIND_GENERATE, [
             'count' => $request->integer('count'),
             'hint' => $request->input('hint'),
+            ...$this->redrawOptions($request),
         ]);
 
         return $this->ndjson(fn (callable $emit) => $ai->generate(
             $source, $crop, $format->cols, $format->rows, $palette, $backgroundId,
-            $request->integer('count'), $request->input('hint'), $emit,
+            $request->integer('count'), $request->input('hint'),
+            $this->imageModel($request), $request->boolean('outline', true), $emit,
         ), $recorder, $created);
     }
 
@@ -249,6 +253,7 @@ class FragmentToolController extends Controller
             'remarks' => ['nullable', 'string', 'max:2000'],
             'hint' => ['nullable', 'string', 'max:'.config('fragment_tool.ai.hint_max_length')],
             'version_id' => ['nullable', 'integer'],
+            ...$this->redrawOptionRules(),
         ]);
 
         $ai = $this->pipeline($request);
@@ -269,12 +274,46 @@ class FragmentToolController extends Controller
             'remarks' => $remarks,
             'hint' => $request->input('hint'),
             'grid' => $grid->toArray(),
+            ...$this->redrawOptions($request),
         ], $this->projectVersion($request));
 
         return $this->ndjson(fn (callable $emit) => $ai->refine(
             $source, $crop, $format->cols, $format->rows, $palette, $backgroundId,
-            $grid, $remarks, $request->input('hint'), $emit,
+            $grid, $remarks, $request->input('hint'),
+            $this->imageModel($request), $request->boolean('outline', true), $emit,
         ), $recorder, $created);
+    }
+
+    /**
+     * Validation of the redraw options shared by generation and refinement.
+     *
+     * @return array<string, list<mixed>>
+     */
+    private function redrawOptionRules(): array
+    {
+        return [
+            'image_model' => ['nullable', 'string', Rule::in(config('fragment_tool.ai.image_models'))],
+            'outline' => ['nullable', 'boolean'],
+        ];
+    }
+
+    /**
+     * Image model chosen by the user, the configured default otherwise.
+     */
+    private function imageModel(ToolImageRequest $request): string
+    {
+        return $request->input('image_model') ?: config('fragment_tool.ai.image_model');
+    }
+
+    /**
+     * @return array{image_model: string, outline: bool}
+     */
+    private function redrawOptions(ToolImageRequest $request): array
+    {
+        return [
+            'image_model' => $this->imageModel($request),
+            'outline' => $request->boolean('outline', true),
+        ];
     }
 
     public function suggest(ToolImageRequest $request): JsonResponse

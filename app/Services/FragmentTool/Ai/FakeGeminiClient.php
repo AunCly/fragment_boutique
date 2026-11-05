@@ -38,10 +38,10 @@ class FakeGeminiClient extends GeminiClient
     /**
      * @param  list<array{mime_type: string, data: string}>  $images
      */
-    public function generateImageAsync(string $prompt, array $images, string $aspectRatio): PromiseInterface
+    public function generateImageAsync(string $prompt, array $images, string $aspectRatio, ?string $model = null): PromiseInterface
     {
         $this->wait();
-        $model = config('fragment_tool.ai.image_model');
+        $model ??= config('fragment_tool.ai.image_model');
 
         return Create::promiseFor([
             'image' => $this->filtered($images[0]['data'], $this->calls++),

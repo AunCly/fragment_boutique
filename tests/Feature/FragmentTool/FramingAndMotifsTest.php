@@ -87,6 +87,13 @@ class FramingAndMotifsTest extends TestCase
         $this->assertSame([self::HALO => 256 - 16, self::SUBJECT => 16], $framed->counts());
     }
 
+    public function test_no_halo_without_halo_essence(): void
+    {
+        $framed = (new SubjectFramer)->frame($this->subjectGrid(background: self::OTHER_BACKGROUND), self::BACKGROUND, null);
+
+        $this->assertSame([self::BACKGROUND => 256 - 16, self::SUBJECT => 16], $framed->counts());
+    }
+
     /**
      * @return array<string, array{0: string}>
      */

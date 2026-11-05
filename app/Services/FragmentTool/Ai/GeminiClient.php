@@ -26,10 +26,11 @@ class GeminiClient
      * or to a GeminiException.
      *
      * @param  list<array{mime_type: string, data: string}>  $images  raw bytes in `data`
+     * @param  ?string  $model  one of fragment_tool.ai.image_models, the configured default when null
      */
-    public function generateImageAsync(string $prompt, array $images, string $aspectRatio): PromiseInterface
+    public function generateImageAsync(string $prompt, array $images, string $aspectRatio, ?string $model = null): PromiseInterface
     {
-        $model = config('fragment_tool.ai.image_model');
+        $model ??= config('fragment_tool.ai.image_model');
         $payload = [
             'model' => $model,
             'input' => $this->input($prompt, $images),
@@ -63,9 +64,9 @@ class GeminiClient
      * @param  list<array{mime_type: string, data: string}>  $images
      * @return array{image: string, text: string, usage: GeminiUsage}
      */
-    public function generateImage(string $prompt, array $images, string $aspectRatio): array
+    public function generateImage(string $prompt, array $images, string $aspectRatio, ?string $model = null): array
     {
-        return self::unwrap($this->generateImageAsync($prompt, $images, $aspectRatio)->wait());
+        return self::unwrap($this->generateImageAsync($prompt, $images, $aspectRatio, $model)->wait());
     }
 
     /**

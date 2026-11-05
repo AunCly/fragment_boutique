@@ -65,6 +65,16 @@ return [
         'endpoint' => 'https://generativelanguage.googleapis.com/v1beta/interactions',
         'api_revision' => '2026-05-20',
         'image_model' => env('FRAGMENT_AI_MODEL', 'gemini-nano-banana-2.1'),
+
+        /*
+        | Image models the user can pick in the tool; image_model is preselected.
+        */
+        'image_models' => [
+            'gemini-nano-banana-2.1',
+            'gemini-3.1-flash-lite-image',
+            'gemini-3-pro-image',
+        ],
+
         'judge_model' => env('FRAGMENT_AI_JUDGE_MODEL', 'gemini-3.1-flash-lite'),
         'suggest_model' => env('FRAGMENT_AI_SUGGEST_MODEL', 'gemini-3.6-flash'),
         'timeout' => 120,
@@ -91,7 +101,9 @@ return [
         | (spec: ≈ 0.08 $ per generated image, a few thousandths per review).
         */
         'prices_per_m' => [
-            'gemini-nano-banana-2.1' => ['input' => 0.50, 'output' => 3.00, 'image' => 60.00],
+            'gemini-nano-banana-2.1' => ['input' => 1.50, 'output' => 7.50, 'image' => 30.00],
+            'gemini-3.1-flash-lite-image' => ['input' => 0.25, 'output' => 1.50, 'image' => 30.00],
+            'gemini-3-pro-image' => ['input' => 2.00, 'output' => 12.00, 'image' => 120.00],
             'gemini-3.1-flash-lite' => ['input' => 0.10, 'output' => 0.40, 'image' => 0.0],
             'gemini-3.6-flash' => ['input' => 0.30, 'output' => 2.50, 'image' => 0.0],
         ],

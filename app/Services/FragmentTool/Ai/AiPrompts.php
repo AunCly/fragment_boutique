@@ -56,19 +56,22 @@ class AiPrompts
         };
     }
 
-    public static function generation(int $cols, int $rows, ToolPalette $palette, int $backgroundId, int $haloId, string $style, ?string $hint): string
+    /**
+     * The outline instruction (dark line + light halo around the subject) can be turned off by the user.
+     */
+    public static function generation(int $cols, int $rows, ToolPalette $palette, int $backgroundId, int $haloId, string $style, ?string $hint, bool $outline = true): string
     {
         [$gridCols, $gridRows] = self::requestedGrid($cols, $rows);
         $background = $palette->get($backgroundId)->hex;
         $halo = $palette->get($haloId)->hex;
-        $outline = $palette->get($palette->darkestId())->hex;
+        $outlineHex = $palette->get($palette->darkestId())->hex;
 
         return trim(implode("\n", array_filter([
             'Redraw the subject of this image as simple pixel art, like an illustrator would: simplified shapes, bold readable forms, no superfluous details.',
             "Use a grid of {$gridCols} × {$gridRows} large square pixels covering the whole image. Flat colours only: no gradients, no dithering, no anti-aliasing, no text.",
             'Use warm natural wood tones (light beige to dark brown).',
             "Background: one plain uniform colour {$background} everywhere around the subject.",
-            "Outline the subject with a continuous dark brown line ({$outline}), itself surrounded by a continuous light outline ({$halo}) that separates it from the background.",
+            $outline ? "Outline the subject with a continuous dark brown line ({$outlineHex}), itself surrounded by a continuous light outline ({$halo}) that separates it from the background." : null,
             self::STYLES[$style] ?? '',
             $hint ? "Additional instructions from the user: {$hint}" : null,
         ])));
@@ -77,7 +80,7 @@ class AiPrompts
     /**
      * @param  list<string>  $remarks
      */
-    public static function refine(int $cols, int $rows, ToolPalette $palette, int $backgroundId, int $haloId, array $remarks, ?string $hint): string
+    public static function refine(int $cols, int $rows, ToolPalette $palette, int $backgroundId, int $haloId, array $remarks, ?string $hint, bool $outline = true): string
     {
         [$gridCols, $gridRows] = self::requestedGrid($cols, $rows);
         $background = $palette->get($backgroundId)->hex;
@@ -87,12 +90,13 @@ class AiPrompts
         return trim(implode("\n", array_filter([
             'The first image is the original. The second image is a pixel art version of it that must be corrected.',
             "Redraw the pixel art version fixing these problems, and keep everything else identical:\n{$lines}",
-            "Keep a grid of {$gridCols} × {$gridRows} large square pixels, flat colours, wood tones, plain background {$background}, continuous dark brown outline surrounded by a continuous light outline {$halo}.",
+            "Keep a grid of {$gridCols} × {$gridRows} large square pixels, flat colours, wood tones, plain background {$background}"
+                .($outline ? ", continuous dark brown outline surrounded by a continuous light outline {$halo}." : '.'),
             $hint ? "Additional instructions from the user: {$hint}" : null,
         ])));
     }
 
-    public static function judge(int $count, int $backgroundId, int $haloId, ToolPalette $palette): string
+    public static function judge(int $count, int $backgroundId, int $haloId, ToolPalette $palette, bool $outline = true): string
     {
         $background = $palette->get($backgroundId)->hex;
         $halo = $palette->get($haloId)->hex;
@@ -101,7 +105,8 @@ class AiPrompts
         return implode("\n", [
             "The first image is the original. The {$count} following images are candidate pixel art versions made of wood pieces, numbered from 0 in order.",
             'Rate each candidate from 0 to 10 for how recognisable and pleasant the subject is once made in wood.',
-            "Criteria: subject readable at this size, clean shapes, eyes and key details visible, plain background {$background}, continuous dark outline with a light outline {$halo} around the subject.",
+            "Criteria: subject readable at this size, clean shapes, eyes and key details visible, plain background {$background}"
+                .($outline ? ", continuous dark outline with a light outline {$halo} around the subject." : '.'),
             "List at most {$max} concrete problems per candidate (short sentences in French, e.g. \"l'œil gauche a disparu\"). Give the index of your preferred candidate.",
         ]);
     }

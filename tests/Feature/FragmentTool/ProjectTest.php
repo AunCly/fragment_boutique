@@ -182,7 +182,7 @@ class ProjectTest extends TestCase
         $run = FragmentAiRun::sole();
         $this->assertSame(FragmentAiRun::KIND_GENERATE, $run->kind);
         $this->assertSame(FragmentAiRun::STATUS_SUCCEEDED, $run->status);
-        $this->assertSame(['count' => 2, 'hint' => 'garder le chapeau'], $run->parameters);
+        $this->assertSame(['count' => 2, 'hint' => 'garder le chapeau', 'image_model' => 'gemini-nano-banana-2.1', 'outline' => true], $run->parameters);
         $this->assertSame($this->admin->id, $run->user_id);
         $this->assertCount(3, $run->usage);
         $this->assertGreaterThan(0, $run->cost_usd);

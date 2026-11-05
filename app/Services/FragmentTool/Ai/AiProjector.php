@@ -34,7 +34,10 @@ class AiProjector
         private readonly SubjectFramer $framer = new SubjectFramer,
     ) {}
 
-    public function project(string $imageBytes, int $cols, int $rows, ToolPalette $palette, int $backgroundId, int $haloId): Grid
+    /**
+     * @param  ?int  $haloId  halo essence imposed around the subject, none when null
+     */
+    public function project(string $imageBytes, int $cols, int $rows, ToolPalette $palette, int $backgroundId, ?int $haloId): Grid
     {
         $image = @imagecreatefromstring($imageBytes);
         if ($image === false) {

@@ -153,6 +153,97 @@ class AiToolTest extends TestCase
             && count($request->data()['input']) === 4);
     }
 
+    public function test_generation_uses_the_chosen_image_model(): void
+    {
+        $this->fakeGeminiWithJudge();
+
+        $events = $this->events($this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 1, 'image_model' => 'gemini-3-pro-image'])));
+
+        $this->assertSame('gemini-3-pro-image', $this->ofType($events, 'result')[0]['usage']['calls'][0]['model']);
+        Http::assertSent(fn (Request $request) => $this->isImageRequest($request) && $request->data()['model'] === 'gemini-3-pro-image');
+        Http::assertNotSent(fn (Request $request) => ($request->data()['model'] ?? null) === 'gemini-nano-banana-2.1');
+    }
+
+    public function test_generation_rejects_an_unknown_image_model(): void
+    {
+        Http::fake();
+
+        $this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 1, 'image_model' => 'gemini-unknown']))
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('image_model');
+        Http::assertNothingSent();
+    }
+
+    public function test_outline_instruction_is_sent_by_default(): void
+    {
+        $this->fakeGeminiWithJudge();
+
+        $this->events($this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 1])));
+
+        Http::assertSent(fn (Request $request) => $this->isImageRequest($request)
+            && str_contains($request->data()['input'][0]['text'], 'Outline the subject'));
+        Http::assertSent(fn (Request $request) => ! $this->isImageRequest($request)
+            && str_contains($request->data()['input'][0]['text'], 'light outline'));
+    }
+
+    public function test_outline_instruction_can_be_turned_off(): void
+    {
+        $this->fakeGeminiWithJudge();
+
+        $events = $this->events($this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 1, 'outline' => '0'])));
+
+        Http::assertSentCount(2);
+        Http::assertNotSent(fn (Request $request) => str_contains($request->data()['input'][0]['text'], 'outline'));
+        $result = $this->ofType($events, 'result')[0];
+        $this->assertNotContains($this->id('sycomore'), array_merge(...$result['candidates'][0]['grid']), 'No halo is imposed by the projection.');
+    }
+
+    public function test_refinement_uses_the_chosen_model_and_outline_option(): void
+    {
+        $this->fakeGeminiWithJudge();
+        $before = array_fill(0, 16, array_fill(0, 16, $this->id('hetre')));
+
+        $events = $this->events($this->postTool('admin.tool.ai.refine', $this->imagePayload([
+            'grid' => json_encode($before),
+            'image_model' => 'gemini-3.1-flash-lite-image',
+            'outline' => '0',
+        ])));
+
+        $this->assertNotContains($this->id('sycomore'), array_merge(...$this->ofType($events, 'result')[0]['grid']));
+
+        Http::assertSent(fn (Request $request) => $this->isImageRequest($request)
+            && $request->data()['model'] === 'gemini-3.1-flash-lite-image'
+            && ! str_contains($request->data()['input'][0]['text'], 'outline'));
+    }
+
+    public function test_test_mode_reports_the_chosen_image_model(): void
+    {
+        config(['services.gemini.key' => null, 'fragment_tool.ai.test_mode_delay_ms' => 0]);
+        Http::fake();
+
+        $events = $this->events($this->postTool('admin.tool.ai.generate', $this->imagePayload(['count' => 1, 'test_mode' => '1', 'image_model' => 'gemini-3.1-flash-lite-image'])));
+
+        $this->assertSame('gemini-3.1-flash-lite-image', $this->ofType($events, 'result')[0]['usage']['calls'][0]['model']);
+        Http::assertNothingSent();
+    }
+
+    public function test_tool_page_offers_the_image_models_with_the_default_preselected(): void
+    {
+        $this->actingAs($this->admin)->get(route('admin.tool.index'))
+            ->assertOk()
+            ->assertSee('<option value="gemini-nano-banana-2.1" selected>', false)
+            ->assertSee('gemini-3.1-flash-lite-image')
+            ->assertSee('gemini-3-pro-image')
+            ->assertSee('data-ref="outline"', false);
+    }
+
+    private function fakeGeminiWithJudge(): void
+    {
+        Http::fake(fn (Request $request) => $this->isImageRequest($request)
+            ? Http::response($this->imageInteraction())
+            : Http::response($this->textInteraction(['candidates' => [['index' => 0, 'score' => 8, 'problems' => []]], 'preferred' => 0])));
+    }
+
     public function test_a_failed_image_does_not_stop_the_batch(): void
     {
         $imageCalls = 0;
@@ -457,6 +548,15 @@ class AiToolTest extends TestCase
         $grid = (new AiProjector)->project($this->modelImage(), 16, 16, $palette, $this->id('hetre'), $this->id('sycomore'));
 
         $this->assertSame($this->expectedProjection(), $grid->toArray());
+    }
+
+    public function test_projection_without_halo_only_imposes_the_background(): void
+    {
+        $palette = $this->toolPalette($this->palette);
+
+        $grid = (new AiProjector)->project($this->modelImage(), 16, 16, $palette, $this->id('hetre'), null);
+
+        $this->assertSame([$this->id('hetre') => 256 - 36, $this->id('merisier') => 36], $grid->counts());
     }
 
     public function test_projection_of_a_finer_drawing_uses_the_contours_logic(): void

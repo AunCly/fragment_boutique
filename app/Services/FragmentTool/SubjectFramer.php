@@ -6,11 +6,12 @@ namespace App\Services\FragmentTool;
  * Imposes the background and the halo after each AI projection (frame_subject):
  * the background is the border-majority essence connected to the border; it becomes
  * the background essence, and its cells touching the subject (diagonals included)
- * become the halo essence. A halo already drawn is not doubled.
+ * become the halo essence. A halo already drawn is not doubled. Without halo essence,
+ * only the background is imposed.
  */
 class SubjectFramer
 {
-    public function frame(Grid $grid, int $backgroundId, int $haloId): Grid
+    public function frame(Grid $grid, int $backgroundId, ?int $haloId): Grid
     {
         $mask = GridMasks::connectedToBorder($grid, GridMasks::borderMajority($grid));
         $cells = $grid->cells;
@@ -23,7 +24,7 @@ class SubjectFramer
             }
         }
 
-        if ($backgroundId === $haloId) {
+        if ($haloId === null || $backgroundId === $haloId) {
             return new Grid($cells);
         }
 
