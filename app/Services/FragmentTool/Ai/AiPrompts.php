@@ -69,9 +69,9 @@ class AiPrompts
         return trim(implode("\n", array_filter([
             'Redraw the subject of this image as simple pixel art, like an illustrator would: simplified shapes, bold readable forms, no superfluous details.',
             "Use a grid of {$gridCols} × {$gridRows} large square pixels covering the whole image. Flat colours only: no gradients, no dithering, no anti-aliasing, no text.",
-            'Use warm natural wood tones (light beige to dark brown).',
+            self::paletteInstruction($palette),
             "Background: one plain uniform colour {$background} everywhere around the subject.",
-            $outline ? "Outline the subject with a continuous dark brown line ({$outlineHex}), itself surrounded by a continuous light outline ({$halo}) that separates it from the background." : null,
+            $outline ? "Outline the subject with a continuous dark line ({$outlineHex}), itself surrounded by a continuous light outline ({$halo}) that separates it from the background." : null,
             self::STYLES[$style] ?? '',
             $hint ? "Additional instructions from the user: {$hint}" : null,
         ])));
@@ -85,15 +85,28 @@ class AiPrompts
         [$gridCols, $gridRows] = self::requestedGrid($cols, $rows);
         $background = $palette->get($backgroundId)->hex;
         $halo = $palette->get($haloId)->hex;
+        $outlineHex = $palette->get($palette->darkestId())->hex;
         $lines = implode("\n", array_map(fn (string $remark) => "- {$remark}", $remarks));
 
         return trim(implode("\n", array_filter([
             'The first image is the original. The second image is a pixel art version of it that must be corrected.',
             "Redraw the pixel art version fixing these problems, and keep everything else identical:\n{$lines}",
-            "Keep a grid of {$gridCols} × {$gridRows} large square pixels, flat colours, wood tones, plain background {$background}"
-                .($outline ? ", continuous dark brown outline surrounded by a continuous light outline {$halo}." : '.'),
+            "Keep a grid of {$gridCols} × {$gridRows} large square pixels, flat colours, plain background {$background}"
+                .($outline ? ", continuous dark outline ({$outlineHex}) surrounded by a continuous light outline {$halo}." : '.'),
+            self::paletteInstruction($palette),
             $hint ? "Additional instructions from the user: {$hint}" : null,
         ])));
+    }
+
+    /**
+     * The palette colours (hex only, never the essence names): a colourful palette must
+     * reach the model, otherwise it draws in browns and the projection keeps the browns.
+     */
+    public static function paletteInstruction(ToolPalette $palette): string
+    {
+        $colours = implode(', ', array_unique(array_map(fn ($essence) => $essence->hex, array_values($palette->all()))));
+
+        return "Only use colours from this palette (the available wood pieces): {$colours}.";
     }
 
     public static function judge(int $count, int $backgroundId, int $haloId, ToolPalette $palette, bool $outline = true): string

@@ -526,7 +526,7 @@ class AiToolTest extends TestCase
         Http::assertNothingSent();
     }
 
-    public function test_prompts_ask_for_half_the_grid_and_never_list_the_essences(): void
+    public function test_prompts_ask_for_half_the_grid_and_never_name_the_essences(): void
     {
         $palette = $this->toolPalette($this->palette);
         $prompt = AiPrompts::generation(32, 32, $palette, $palette->defaultBackgroundId(), $palette->haloId(), 'cute', null);
@@ -539,6 +539,24 @@ class AiToolTest extends TestCase
         $this->assertSame(['base'], AiPrompts::stylesFor(1));
         $this->assertSame(['base', 'contrast', 'faithful', 'cute'], AiPrompts::stylesFor(4));
         $this->assertSame('9:16', AiPrompts::aspectRatio(24, 48));
+    }
+
+    public function test_generation_and_refine_prompts_list_every_palette_colour_instead_of_wood_tones(): void
+    {
+        $palette = $this->toolPalette($this->palette);
+        $prompts = [
+            AiPrompts::generation(32, 32, $palette, $palette->defaultBackgroundId(), $palette->haloId(), 'base', null),
+            AiPrompts::refine(32, 32, $palette, $palette->defaultBackgroundId(), $palette->haloId(), ['l\'œil a disparu'], null),
+        ];
+
+        foreach ($prompts as $prompt) {
+            foreach ($palette->all() as $essence) {
+                $this->assertStringContainsString($essence->hex, $prompt);
+                $this->assertStringNotContainsString($essence->name, $prompt);
+            }
+            $this->assertStringNotContainsString('wood tones', $prompt);
+            $this->assertStringNotContainsString('brown', $prompt);
+        }
     }
 
     public function test_projection_imposes_background_and_halo(): void
